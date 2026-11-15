@@ -53,22 +53,24 @@ export default {
     // 1. HEALTH CHECK
     // -----------------------------------------------------
 
-    if (request.method === 'GET') {
+   
+if (request.method === 'GET') {
 
-      return new Response(JSON.stringify({
-        ok: true,
-        app: 'CALISTHENICS OS',
-        service: 'Cloudflare Worker',
-        status: 'Worker online'
-      }), {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-store'
-        }
-      });
-
+  return new Response(JSON.stringify({
+    ok: true,
+    hasGasUrl: Boolean(env.GAS_URL),
+    hasBridgeSecret: Boolean(env.BRIDGE_SECRET),
+    hasFrontendOrigin: Boolean(env.FRONTEND_ORIGIN)
+  }), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-store'
     }
+  });
+
+}
+
 
 
     // -----------------------------------------------------
