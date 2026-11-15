@@ -27,3 +27,5 @@ The proxy is required because Google Apps Script ContentService does not support
 - Do not commit `.dev.vars`, `.env` files, `node_modules/`, or private Apps Script `.gs` source files.
 
 Deploy locally with `npx wrangler deploy` after installing Wrangler, or let the connected Cloudflare Git build deploy from this repository.
+
+Cloudflare GitHub Auto Deploy Test
