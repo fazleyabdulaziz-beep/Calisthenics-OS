@@ -10,11 +10,11 @@ button,input,select,textarea{font:inherit;color:inherit}
 button{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 16px;min-height:44px;cursor:pointer;transition:.15s}
 button:hover{border-color:var(--ac)}button.p{background:var(--ac);color:#111;border-color:var(--ac);font-weight:600}
 button.sm{min-height:36px;padding:4px 10px}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
-input,select{background:#111;border:1px solid var(--line);border-radius:10px;padding:10px;min-height:44px;width:100%}
+input,select{background:var(--in,#111);border:1px solid var(--line);border-radius:10px;padding:10px;min-height:44px;width:100%}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;margin-bottom:14px}
 .mut{color:var(--mut)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}
 .stat b{display:block;font:700 34px 'Barlow Condensed',sans-serif;color:var(--ac)}
-.bar{height:10px;background:#111;border-radius:9px;overflow:hidden}.bar i{display:block;height:100%;background:var(--ac);transition:width .5s}
+.bar{height:10px;background:var(--in,#111);border-radius:9px;overflow:hidden}.bar i{display:block;height:100%;background:var(--ac);transition:width .5s}
 #app{display:flex;min-height:100vh}nav{width:210px;padding:20px 12px;border-right:1px solid var(--line);position:sticky;top:0;height:100vh}
 nav h3{font-size:24px;color:var(--ac);padding:0 10px 14px}nav button{display:block;width:100%;text-align:left;border:0;background:none;margin-bottom:4px}
 nav button.on{background:var(--card);color:var(--ac)}main{flex:1;padding:24px;max-width:900px;margin:0 auto;width:100%}
@@ -33,13 +33,13 @@ const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&'
 const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const TODAY=iso(new Date()),TDAY=DAYS[(new Date().getDay()+6)%7];
-let S={tok:sessionStorage.getItem('t'),user:null,role:null,view:'Dashboard',routines:[],logs:[],stats:null,users:[],edit:null,reg:false,err:''};
+let S={tok:sessionStorage.getItem('t'),user:null,role:null,view:'Dashboard',routines:[],history:[],lib:[],skills:[],an:{weeks:[],prs:[]},tpl:[],logs:[],stats:null,users:[],edit:null,reg:false,err:''};
 function call(a,d){return new Promise((res,rej)=>google.script.run.withSuccessHandler(r=>{
  if(!r.ok){if(r.error==='SESSION'){out();return rej(new Error('Session expired. Log in again.'))}return rej(new Error(r.error))}res(r.data)}).withFailureHandler(e=>rej(e)).api(a,S.tok,d))}
 function out(){S.tok=null;S.user=null;sessionStorage.removeItem('t');render()}
 function enter(r){S.tok=r.token;S.user=r.username;S.role=r.role;sessionStorage.setItem('t',r.token);S.err='';load()}
-async function load(){try{const[me,ro,lg,st]=await Promise.all([call('me'),call('routines'),call('logs',{date:TODAY}),call('stats',{today:TODAY})]);
- S.user=me.username;S.role=me.role;S.routines=ro;S.logs=lg;S.stats=st;if(S.role==='admin')S.users=await call('admin_users');render()}catch(e){S.err=e.message;render()}}
+async function load(){try{const[me,ro,lg,st,sk,an]=await Promise.all([call('me'),call('routines'),call('logs',{date:TODAY}),call('stats',{today:TODAY}),call('skills'),call('analytics',{today:TODAY})]);
+ S.user=me.username;S.role=me.role;S.routines=ro;S.logs=lg;S.stats=st;S.skills=sk;S.an=an;if(S.role==='admin'){S.users=await call('admin_users');S.tpl=await call('admin_templates')}render()}catch(e){S.err=e.message;render()}}
 const todayRoutines=()=>S.routines.filter(r=>r.day===TDAY&&r.exercises.length);
 const isDone=(rid,i)=>S.logs.some(l=>l.routineId===rid&&l.idx===i);
 function prog(){let t=0,d=0;todayRoutines().forEach(r=>r.exercises.forEach((e,i)=>{t++;if(isDone(r.id,i))d++}));return{t,d,p:t?Math.round(d/t*100):0}}
@@ -51,9 +51,9 @@ function render(){
  $('#sw').onclick=()=>{S.reg=!S.reg;S.err='';render()};
  $('#auth').onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));try{enter(await call(S.reg?'register':'login',d))}catch(x){S.err=x.message;render()}};return}
  if(!S.user){$('#root').innerHTML='<main><p class="mut">Loading…</p><p class="err">'+esc(S.err)+'</p></main>';load();return}
- const views=['Dashboard','My Workout','Daily Routine','Profile'].concat(S.role==='admin'?['Admin']:[]);
+ const views=['Dashboard','My Workout','Daily Routine','Exercise Library','Progression','Workout History','Analytics','Profile','Settings'].concat(S.role==='admin'?['Admin']:[]);
  $('#root').innerHTML=`<div id="app"><nav><h3>CALISTHENICS OS</h3>${views.map(v=>`<button class="${v===S.view?'on':''}" data-v="${v}">${v}</button>`).join('')}</nav><main>${V[S.view]()}</main></div>`;
- document.querySelectorAll('nav [data-v]').forEach(b=>b.onclick=()=>{S.view=b.dataset.v;S.edit=null;render()});
+ document.querySelectorAll('nav [data-v]').forEach(b=>b.onclick=async()=>{S.view=b.dataset.v;S.edit=null;const L={'Workout History':['history','history'],'Exercise Library':['lib','lib'],'Progression':['skills','skills'],'Analytics':['analytics','an']}[S.view];if(L){try{S[L[1]]=await call(L[0],{today:TODAY})}catch(e){}}render()});
  document.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>H[b.dataset.a](b.dataset));
 }
 const bar=()=>{const p=prog();return`<p>Daily routine: ${p.d} / ${p.t} completed · ${p.p}%</p><div class="bar"><i style="width:${p.p}%"></i></div>`};
@@ -64,7 +64,7 @@ Dashboard(){const h=new Date().getHours(),g=h<12?'Good morning':h<18?'Good after
  return`<h1>${g}, ${esc(S.user)}</h1><p class="mut">${new Date().toDateString()}. Show up, do the work.</p>
  <div class="card"><h2>${rs.length?esc(rs.map(r=>r.name).join(' + ')):'Rest day'}</h2><p class="mut">${ex} exercises · ${sets} sets · about ${Math.round(sets*2.5)} min</p>${bar()}<p><button class="p" data-a="go">${rs.length?(prog().d?'Continue workout':'Start workout'):'Plan a routine'}</button></p></div>
  <div class="grid">${[['Workouts',s.workouts],['Streak (days)',s.streak],['Training days',s.days],['Total sets',s.sets],['Total reps',s.reps],['Weekly consistency',s.consistency+'%']].map(x=>`<div class="card stat"><b>${x[1]}</b>${x[0]}</div>`).join('')}</div>
- <div class="card"><h2>This week</h2><div class="week">${s.week.map(w=>`<div><i style="height:${w.n/mx*70}px"></i>${DAYS[(new Date(w.date+'T12:00').getDay()+6)%7]}</div>`).join('')}</div></div>`},
+ ${dashExtra()}<div class="card"><h2>This week</h2><div class="week">${s.week.map(w=>`<div><i style="height:${w.n/mx*70}px"></i>${DAYS[(new Date(w.date+'T12:00').getDay()+6)%7]}</div>`).join('')}</div></div>`},
 'My Workout'(){const rs=todayRoutines();if(!rs.length)return`<h1>My workout</h1><div class="card">Nothing scheduled for ${TDAY}. Assign a routine to this day under Daily Routine.</div>`;
  return`<h1>My workout</h1>${rs.map(r=>`<div class="card"><h2>${esc(r.name)}</h2>${r.exercises.map((e,i)=>`<div class="ex"><button class="ck ${isDone(r.id,i)?'d':''}" data-a="tg" data-r="${r.id}" data-i="${i}" aria-label="Mark ${esc(e.name)} done">${isDone(r.id,i)?'✓':''}</button>
  <div class="${isDone(r.id,i)?'done':''}"><b>${esc(e.name)}</b><br><span class="mut">${e.sets} × ${e.reps}${e.unit==='sec'?' sec':' reps'} · rest ${e.rest}s${e.note?' · '+esc(e.note):''}</span></div></div>`).join('')}</div>`).join('')}<div class="card">${bar()}</div>`},
@@ -76,11 +76,33 @@ Dashboard(){const h=new Date().getHours(),g=h<12?'Good morning':h<18?'Good after
  <p><button data-a="ax">Add exercise</button> <button class="p" data-a="sv">Save routine</button> <button data-a="cx">Cancel</button></p><div class="err">${esc(S.err)}</div></div>`;
  return`<h1>Daily routine</h1><p><button class="p" data-a="nw">New routine</button></p>${S.routines.map(r=>`<div class="card"><h2>${esc(r.name)}</h2><p class="mut">${r.day||'Unassigned'} · ${r.exercises.length} exercises</p>
  <button class="sm" data-a="ed" data-id="${r.id}">Edit</button> <button class="sm" data-a="dp" data-id="${r.id}">Duplicate</button> <button class="sm" data-a="dl" data-id="${r.id}">Delete</button></div>`).join('')}`},
+'Workout History'(){if(!S.history.length)return`<h1>Workout history</h1><div class="card">No workouts logged yet. Tick off an exercise in My Workout and it will show up here.</div>`;
+ return`<h1>Workout history</h1>${S.history.map(h=>{const sets=h.items.reduce((n,x)=>n+x.sets,0);return`<div class="card"><h2>${new Date(h.date+'T12:00').toDateString()}</h2><p class="mut">${h.items.length} exercises · ${sets} sets</p>
+ ${h.items.map(x=>`<div class="ex"><span class="ck d" aria-hidden="true">✓</span><div><b>${esc(x.name)}</b><br><span class="mut">${esc(x.routine)} · ${x.sets} × ${x.reps}</span></div></div>`).join('')}</div>`}).join('')}`},
+'Exercise Library'(){return`<h1>Exercise library</h1><div class="card"><input placeholder="Search exercises" oninput="S.q=this.value;fl()"><p><select onchange="S.target=this.value">${S.routines.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('')}</select></p><p class="mut">Choose a routine, then add exercises to it.</p></div><div id="ll">${libList()}</div>
+ <div class="card"><h2>Add your own</h2><input id="ln" placeholder="Exercise name"><p><input id="lc" placeholder="Category (Push, Pull, Legs, Core)"></p><div class="grid"><select id="lu"><option>reps</option><option>sec</option></select><input id="ls" type="number" value="3"><input id="lr" type="number" value="10"></div>${S.role==='admin'?'<p><label><input type="checkbox" id="lg" style="width:auto"> Share with all users</label></p>':''}<p><button class="p" data-a="nl">Save exercise</button></p></div>`},
+Progression(){return`<h1>Progression</h1>${S.skills.map(k=>`<div class="card"><h2>${esc(k.skill)}</h2><p class="mut">Step ${k.level+1} of ${k.steps.length}: ${esc(k.steps[k.level])}</p><div class="bar"><i style="width:${Math.round((k.level+1)/k.steps.length*100)}%"></i></div><p>${k.steps.map((s,i)=>`<button class="sm ${i===k.level?'p':''}" data-a="lv" data-s="${esc(k.skill)}" data-l="${i}">${esc(s)}</button>`).join(' ')}</p></div>`).join('')}`},
+Analytics(){const w=S.an.weeks,mx=Math.max(1,...w);return`<h1>Analytics</h1><div class="card"><h2>Sets per week</h2><div class="week">${w.map(n=>`<div><i style="height:${n/mx*70}px"></i>${n}</div>`).join('')}</div><p class="mut">Last 8 weeks, oldest on the left.</p></div><div class="card"><h2>Personal records</h2>${S.an.prs.length?S.an.prs.map(p=>`<div class="ex"><b>${esc(p.name)}</b><span class="mut">best ${p.best} ${p.unit}</span></div>`).join(''):'<p class="mut">Log workouts to set records.</p>'}</div>`},
+Settings(){return`<h1>Settings</h1><div class="card"><p>Theme</p><select onchange="setCfg('theme',this.value)"><option value="dark" ${cfg.theme==='dark'?'selected':''}>Dark</option><option value="light" ${cfg.theme==='light'?'selected':''}>Light</option></select><p>Accent color</p><input type="color" value="${cfg.accent}" onchange="setCfg('accent',this.value)"><p class="mut">Saved on this device.</p></div>`},
 Profile(){return`<h1>Profile</h1><div class="card"><p>Signed in as <b>${esc(S.user)}</b>${S.role==='admin'?' (admin)':''}</p><input id="np" type="password" placeholder="New password (8+ characters)"><p><button data-a="pw">Change password</button> <button class="p" data-a="lo">Log out</button></p><div class="err">${esc(S.err)}</div></div>`},
 Admin(){return`<h1>Admin</h1>${S.users.map(u=>`<div class="card"><b>${esc(u.username)}</b> <span class="mut">${u.role} · ${u.sets} logged exercises · ${u.active?'active':'deactivated'}</span>${u.role==='admin'?'':`<p><button class="sm" data-a="ac" data-u="${esc(u.username)}" data-on="${u.active?'':'1'}">${u.active?'Deactivate':'Activate'}</button> <button class="sm" data-a="rp" data-u="${esc(u.username)}">Reset password</button></p>`}</div>`).join('')}
- <p class="mut">Default templates for new users live in the Routines sheet under username _template.</p>`}};
+ <h2>Default templates</h2>${S.tpl.map(t=>`<div class="card"><b>${esc(t.name)}</b> <span class="mut">${t.day||'Unassigned'}</span> <button class="sm" data-a="et" data-id="${t.id}">Edit</button></div>`).join('')}<button data-a="nt">New template</button><p class="mut">Template changes apply to new accounts only.</p>`}};
 function grab(){if(!S.edit)return;S.edit.name=$('#rn').value;S.edit.day=$('#rd').value;document.querySelectorAll('[data-f]').forEach(i=>S.edit.exercises[+i.dataset.i][i.dataset.f]=i.type==='number'?+i.value:i.value)}
+let cfg={theme:'dark',accent:'#c6ff00'};try{cfg=Object.assign(cfg,JSON.parse(localStorage.getItem('cfg')))}catch(e){}
+function applyCfg(){const s=document.documentElement.style,l=cfg.theme==='light';[['--bg',l?'#f2f2ee':'#151515'],['--card',l?'#fff':'#202020'],['--line',l?'#d8d8d2':'#333'],['--tx',l?'#171717':'#f4f4f2'],['--mut',l?'#6b6b66':'#9a9a94'],['--in',l?'#f2f2ee':'#111'],['--ac',cfg.accent]].forEach(x=>s.setProperty(x[0],x[1]))}
+function setCfg(k,v){cfg[k]=v;try{localStorage.setItem('cfg',JSON.stringify(cfg))}catch(e){}applyCfg()}
+function dashExtra(){const k=S.skills.find(x=>x.level<x.steps.length-1)||S.skills[0];
+ return`<div class="grid"><div class="card stat"><b>${S.an.prs.length}</b>Personal records</div></div>`+(k?`<div class="card"><h2>${esc(k.skill)}</h2><p class="mut">Now: ${esc(k.steps[k.level])}${k.level<k.steps.length-1?' · Next: '+esc(k.steps[k.level+1]):' · Top level'}</p><div class="bar"><i style="width:${Math.round((k.level+1)/k.steps.length*100)}%"></i></div></div>`:'')}
+function libList(){const q=(S.q||'').toLowerCase();return S.lib.filter(x=>x.name.toLowerCase().includes(q)).map(x=>`<div class="card"><b>${esc(x.name)}</b> <span class="mut">${esc(x.category)} · ${x.sets} × ${x.reps} ${x.unit}</span><p><button class="sm" data-a="ul" data-id="${x.id}">Add to routine</button>${x.mine||S.role==='admin'?` <button class="sm" data-a="ld" data-id="${x.id}">Delete</button>`:''}</p></div>`).join('')||'<p class="mut">No matches.</p>'}
+function fl(){$('#ll').innerHTML=libList();$('#ll').querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>H[b.dataset.a](b.dataset))}
 const H={
+async ul(d){const r=S.routines.find(x=>x.id===(S.target||(S.routines[0]||{}).id)),e=S.lib.find(x=>x.id===d.id);if(!r)return alert('Create a routine first.');
+ r.exercises.push({name:e.name,sets:e.sets,reps:e.reps,unit:e.unit,rest:60,note:''});try{await call('routine_save',r);alert('Added to '+r.name)}catch(x){alert(x.message)}},
+async nl(){try{await call('lib_save',{name:$('#ln').value,category:$('#lc').value,unit:$('#lu').value,sets:$('#ls').value,reps:$('#lr').value,global:$('#lg')&&$('#lg').checked});S.lib=await call('lib');render()}catch(e){alert(e.message)}},
+async ld(d){if(confirm('Delete this exercise?')){try{await call('lib_delete',{id:d.id});S.lib=await call('lib');render()}catch(e){alert(e.message)}}},
+async lv(d){try{await call('skill_set',{skill:d.s,level:+d.l});S.skills=await call('skills');render()}catch(e){alert(e.message)}},
+et(d){S.edit=JSON.parse(JSON.stringify(S.tpl.find(r=>r.id===d.id)));S.edit.template=true;S.view='Daily Routine';S.err='';render()},
+nt(){S.edit={template:true,name:'New template',day:'',exercises:[{name:'Push-ups',sets:3,reps:10,unit:'reps',rest:60,note:''}]};S.view='Daily Routine';S.err='';render()},
 go(){S.view=todayRoutines().length?'My Workout':'Daily Routine';render()},
 async tg(d){try{await call('toggle',{date:TODAY,routineId:d.r,idx:+d.i});S.logs=await call('logs',{date:TODAY});S.stats=await call('stats',{today:TODAY});render()}catch(e){alert(e.message)}},
 nw(){S.edit={name:'New routine',day:'',exercises:[{name:'Push-ups',sets:3,reps:10,unit:'reps',rest:60,note:''}]};S.err='';render()},
@@ -97,5 +119,5 @@ async lo(){try{await call('logout')}catch(e){}out()},
 async pw(){try{await call('change_pw',{password:$('#np').value});S.err='Password changed.'}catch(e){S.err=e.message}render()},
 async ac(d){await call('admin_active',{username:d.u,active:!!d.on});load()},
 async rp(d){const p=prompt('New password for '+d.u+' (8+ characters)');if(p){try{await call('admin_reset',{username:d.u,password:p});alert('Password reset.')}catch(e){alert(e.message)}}}};
-S.tok?load():render();
+applyCfg();S.tok?load():render();
 </script></body></html>
