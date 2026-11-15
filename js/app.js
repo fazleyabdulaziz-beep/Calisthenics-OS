@@ -562,7 +562,11 @@ function openRoutine(id) {
     <div class="modal">
       <h2>${r ? 'Edit routine' : 'Create routine'}</h2>
       <label class="field">Routine name<input id="rName" value="${esc(r?.routine_name || '')}" placeholder="e.g. Upper body"></label>
-      <label class="field">Training day<select id="rDay">${['Unscheduled', 'Everyday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(d => `<option ${r?.assigned_day === d ? 'selected' : ''}>${d}</option>`).join('')}</select></label>
+      <label class="field">Training day<select id="rDay">${['Unscheduled', 'Everyday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(d => `<option ${
+  String(r?.assigned_day || '').trim().toLowerCase() === d.toLowerCase()
+    ? 'selected'
+    : ''
+}>${d}</option>`).join('')}</select></label>
       <label class="field">Description<input id="rDesc" value="${esc(r?.description || '')}" placeholder="Focus for this session"></label>
       <div class="card-title"><h3>Exercises</h3><button class="btn secondary small-btn" onclick="addExerciseEditor()">+ Add exercise</button></div>
       <div id="exerciseEditors">${ex.map(exerciseEditor).join('')}</div>
