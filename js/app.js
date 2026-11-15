@@ -899,31 +899,53 @@ async function renderBodyMetrics(root) {
     </div>
     <div class="grid body-content-grid">
       <div class="card"><div class="card-title"><div><h3>Daily weight trend</h3><p>Last 30 entries · ${entries.length} total records</p></div><span class="pill">KG</span></div>${chart}</div>
-      <div class="card"><div class="card-title"><div><h3>Record today's metrics</h3><p>One entry per day. Saving again updates today's entry.</p></div></div>
-        <form id="bodyMetricsForm" class="body-form">
+      <div class="card"><div class="card-title"><div><h3>Height</h3><p>Save once to your profile. It does not need daily updates.</p></div></div>
+        <form id="bodyHeightForm" class="body-form">
           <label class="field">Height (cm)<input id="bodyHeight" type="number" min="80" max="250" step="0.1" value="${height || ''}" placeholder="e.g. 172" required></label>
-          <label class="field">Today's weight (kg)<input id="bodyWeight" type="number" min="20" max="400" step="0.1" value="${latest && latest.date === new Date().toLocaleDateString('en-CA', {timeZone:'Asia/Singapore'}) ? latest.weight_kg : ''}" placeholder="e.g. 68.5" required></label>
+          <button class="btn primary full" id="saveHeightBtn" type="submit">${height ? 'Update height' : 'Save height'}</button>
+        </form>
+        <div class="divider" style="margin:18px 0"></div>
+        <div class="card-title"><div><h3>Today's weight</h3><p>One entry per day. Saving again updates today's entry.</p></div></div>
+        <form id="bodyWeightForm" class="body-form">
+          <label class="field">Weight (kg)<input id="bodyWeight" type="number" min="20" max="400" step="0.1" value="${latest && latest.date === new Date().toLocaleDateString('en-CA', {timeZone:'Asia/Singapore'}) ? latest.weight_kg : ''}" placeholder="e.g. 68.5" required></label>
           <button class="btn primary full" id="saveBodyMetricsBtn" type="submit">Save today's weight</button>
         </form>
-        <p class="muted-block">Your height is saved to your profile. Weight is stored by date, so you can track changes over time.</p>
+        <p class="muted-block">Height is stored once in your profile. Weight is recorded by date.</p>
       </div>
     </div>
     <div class="card" style="margin-top:16px"><div class="card-title"><div><h3>Recent entries</h3><p>Your latest daily measurements</p></div></div>
       ${entries.length ? `<div class="table-wrap"><table class="table"><thead><tr><th>DATE</th><th>WEIGHT</th><th>BMI</th></tr></thead><tbody>${entries.slice(-10).reverse().map(e => `<tr><td>${esc(e.date)}</td><td>${e.weight_kg.toFixed(1)} kg</td><td>${height ? (e.weight_kg / Math.pow(height/100,2)).toFixed(1) : '—'}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">No entries yet.</div>'}
     </div>`;
 
-  $('bodyMetricsForm').addEventListener('submit', async event => {
+  $('bodyHeightForm').addEventListener('submit', async event => {
+    event.preventDefault();
+    const btn = $('saveHeightBtn');
+    if (btn.disabled) return;
+    const old = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<span class="mini-spinner"></span> Saving...';
+    try {
+      await api('saveHeight', { height_cm: $('bodyHeight').value });
+      toast('Height saved to your profile');
+      await renderBodyMetrics(root);
+    } catch (error) {
+      toast(error.message || 'Could not save height');
+    } finally {
+      if (btn.isConnected) { btn.disabled = false; btn.innerHTML = old; }
+    }
+  });
+
+  $('bodyWeightForm').addEventListener('submit', async event => {
     event.preventDefault();
     const btn = $('saveBodyMetricsBtn');
     if (btn.disabled) return;
     const old = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '<span class="mini-spinner"></span> Saving...';
     try {
-      await api('saveBodyMetrics', { height_cm: $('bodyHeight').value, weight_kg: $('bodyWeight').value });
+      await api('saveBodyMetrics', { weight_kg: $('bodyWeight').value });
       toast("Today's weight saved");
       await renderBodyMetrics(root);
     } catch (error) {
-      toast(error.message || 'Could not save body metrics');
+      toast(error.message || 'Could not save weight');
     } finally {
       if (btn.isConnected) { btn.disabled = false; btn.innerHTML = old; }
     }
