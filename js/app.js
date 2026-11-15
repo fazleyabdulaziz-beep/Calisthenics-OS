@@ -200,6 +200,25 @@ function api(action, payload = {}) {
   return rpc('api', action, { ...payload, token: state.token });
 }
 
+// Consistent button feedback for asynchronous actions.
+async function runButtonAction(button, label, action) {
+  if (!button || button.disabled) return;
+  const original = button.innerHTML;
+  button.disabled = true;
+  button.classList.add('is-loading');
+  button.setAttribute('aria-busy', 'true');
+  button.innerHTML = `<span class="btn-spinner" aria-hidden="true"></span><span>${esc(label || 'Please wait...')}</span>`;
+  try { return await action(); }
+  finally {
+    if (button.isConnected) {
+      button.innerHTML = original;
+      button.disabled = false;
+      button.classList.remove('is-loading');
+      button.removeAttribute('aria-busy');
+    }
+  }
+}
+
 function toast(message) {
   const el = $('toast');
   el.textContent = message;
@@ -352,7 +371,8 @@ $('authForm').addEventListener('submit', async e => {
     }
 
     $('authSubmit').disabled = true;
-    $('authSubmit').textContent = 'Please wait…';
+    $('authSubmit').innerHTML = '<span class="btn-spinner" aria-hidden="true"></span><span>Please wait…</span>';
+    $('authSubmit').disabled = true;
 
     let result;
 
@@ -460,6 +480,7 @@ async function renderDashboard(root) {
     String(item.assigned_day || '').toLowerCase() === 'everyday'
   );
   const done = new Set(d.completedExercises || []);
+  const progressByName = new Map((d.exerciseProgress || []).map(x => [String(x.exercise_name || '').toLowerCase(), x]));
   const items = r?.exercises || [];
   const pct = items.length ? Math.round(done.size / items.length * 100) : 0;
 
@@ -486,17 +507,26 @@ async function renderDashboard(root) {
         <button class="btn secondary small-btn" onclick="navigate('routines')">Edit routine</button>
       </div>
       ${r ? `
-        <div class="progress-caption"><span>DAILY COMPLETION</span><span>${done.size}/${items.length} · ${pct}%</span></div>
+        <div class="progress-caption"><span>DAILY COMPLETION</span><span>${done.size}/${items.length} exercises · ${pct}%</span></div>
         <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
         <div class="routine-list" style="margin-top:14px">
-          ${items.map((x, i) => `
-            <div class="routine-row ${done.has(x.exercise_name) ? 'done' : ''}">
-              <div class="routine-check">${done.has(x.exercise_name) ? '✓' : i + 1}</div>
-              <div class="routine-info"><b>${esc(x.exercise_name)}</b><small>${esc(x.target_sets)} sets · ${esc(x.target_reps)} reps · ${Number(x.rest_seconds) || 60}s rest</small></div>
-              <span class="pill">${esc(x.category || 'TRAINING')}</span>
-            </div>`).join('')}
+          ${items.map((x, i) => {
+            const p = progressByName.get(String(x.exercise_name || '').toLowerCase()) || {};
+            const isDone = done.has(x.exercise_name) || p.completed === true;
+            const targetSets = Number(x.target_sets) || 1;
+            const loggedSets = Number(p.logged_sets) || 0;
+            const actualReps = Number(p.actual_reps) || 0;
+            const targetTotal = Number(p.target_total_reps) || 0;
+            const exercisePct = targetTotal > 0 ? Math.min(100, Math.round(actualReps / targetTotal * 100)) : Math.min(100, Math.round(loggedSets / targetSets * 100));
+            return `
+            <div class="routine-row ${isDone ? 'done' : ''} routine-progress-row">
+              <div class="routine-check">${isDone ? '✓' : i + 1}</div>
+              <div class="routine-info"><b>${esc(x.exercise_name)}</b><small>${loggedSets}/${targetSets} sets · ${actualReps}${targetTotal ? ' / ' + targetTotal : ''} reps · ${exercisePct}%</small><div class="exercise-progress-track"><div class="exercise-progress-fill" style="width:${exercisePct}%"></div></div></div>
+              <span class="pill ${isDone ? 'status-complete' : ''}">${isDone ? 'COMPLETED' : esc(x.category || 'IN PROGRESS')}</span>
+            </div>`;
+          }).join('')}
         </div>
-        <div class="actions"><button class="btn primary" onclick="startRoutine('${esc(r.routine_id)}')">Start this routine →</button></div>
+        <div class="actions"><button class="btn primary" onclick="runButtonAction(this,'Starting...',()=>startRoutine('${esc(r.routine_id)}'))">Start this routine →</button></div>
       ` : '<div class="empty">Create a routine and assign it to ' + dayName() + '.</div>'}
     </div>
 
@@ -539,8 +569,8 @@ async function renderRoutines(root) {
       ${(r.exercises || []).map(x => `<div class="exercise-line"><span>${esc(x.exercise_name)}</span><span class="muted">${esc(x.target_sets)} × ${esc(x.target_reps)}</span></div>`).join('')}
       <div class="actions">
         <button class="btn secondary small-btn" onclick="openRoutine('${esc(r.routine_id)}')">Edit</button>
-        <button class="btn secondary small-btn" onclick="startRoutine('${esc(r.routine_id)}')">Start</button>
-        <button class="btn danger small-btn" onclick="removeRoutine('${esc(r.routine_id)}')">Delete</button>
+        <button class="btn secondary small-btn" onclick="runButtonAction(this,'Starting...',()=>startRoutine('${esc(r.routine_id)}'))">Start</button>
+        <button class="btn danger small-btn" onclick="runButtonAction(this,'Deleting...',()=>removeRoutine('${esc(r.routine_id)}'))">Delete</button>
       </div>
     </div>`).join('')}
   </div>` : '<div class="empty">No routines yet. Create your first training plan.</div>'}`;
@@ -562,17 +592,13 @@ function openRoutine(id) {
     <div class="modal">
       <h2>${r ? 'Edit routine' : 'Create routine'}</h2>
       <label class="field">Routine name<input id="rName" value="${esc(r?.routine_name || '')}" placeholder="e.g. Upper body"></label>
-      <label class="field">Training day<select id="rDay">${['Unscheduled', 'Everyday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(d => `<option ${
-  String(r?.assigned_day || '').trim().toLowerCase() === d.toLowerCase()
-    ? 'selected'
-    : ''
-}>${d}</option>`).join('')}</select></label>
+      <label class="field">Training day<select id="rDay">${['Unscheduled', 'Everyday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(d => `<option ${r?.assigned_day === d ? 'selected' : ''}>${d}</option>`).join('')}</select></label>
       <label class="field">Description<input id="rDesc" value="${esc(r?.description || '')}" placeholder="Focus for this session"></label>
       <div class="card-title"><h3>Exercises</h3><button class="btn secondary small-btn" onclick="addExerciseEditor()">+ Add exercise</button></div>
       <div id="exerciseEditors">${ex.map(exerciseEditor).join('')}</div>
       <div class="modal-actions">
         <button class="btn secondary" onclick="closeModal()">Cancel</button>
-        <button class="btn primary" onclick="saveRoutine('${esc(id || '')}')">Save routine</button>
+        <button class="btn primary" onclick="runButtonAction(this,'Saving...',()=>saveRoutine('${esc(id || '')}'))">Save routine</button>
       </div>
     </div>
   </div>`;
@@ -674,7 +700,7 @@ async function renderWorkout(root) {
       ${routines.map(r => `<div class="card">
         <h3>${esc(r.routine_name)}</h3>
         <p class="muted">${esc(r.assigned_day)} · ${(r.exercises || []).length} exercises</p>
-        <button class="btn primary" onclick="startRoutine('${esc(r.routine_id)}')">Start workout →</button>
+        <button class="btn primary" onclick="runButtonAction(this,'Starting...',()=>startRoutine('${esc(r.routine_id)}'))">Start workout →</button>
       </div>`).join('')}
     </div>
     ${!routines.length ? '<div class="empty">Create a routine first to start tracking.</div>' : ''}`;
@@ -696,10 +722,10 @@ async function renderWorkout(root) {
         <input class="log-reps" type="number" min="0" placeholder="Actual reps">
         <input class="log-weight" type="number" min="0" step=".5" placeholder="Weight kg">
         <input class="log-hold" type="number" min="0" placeholder="Hold sec">
-        <button class="btn primary small-btn" onclick="logSet(this,'${esc(x.exercise_name)}','${esc(x.target_reps)}',${i + 1})">Save set</button>
+        <button class="btn primary small-btn" onclick="runButtonAction(this,'Saving set...',()=>logSet(this,'${esc(x.exercise_name)}','${esc(x.target_reps)}',${i + 1}))">Save set</button>
       </div>
     </div>`).join('')}
-    <div class="actions"><button class="btn primary" onclick="finishWorkout()">Finish workout ✓</button></div>
+    <div class="actions"><button class="btn primary" onclick="runButtonAction(this,'Finishing...',()=>finishWorkout())">Finish workout ✓</button></div>
   </div>`;
 }
 
@@ -708,6 +734,7 @@ async function logSet(btn, name, target, setNo) {
   const reps = wrap.querySelector('.log-reps').value;
   const weight = wrap.querySelector('.log-weight').value;
   const hold = wrap.querySelector('.log-hold').value;
+  const nextSetNo = Number(wrap.dataset.loggedSets || 0) + 1;
 
   if (!reps && !hold) {
     toast('Enter reps or hold duration first.');
@@ -722,7 +749,7 @@ async function logSet(btn, name, target, setNo) {
       routine_id: r.routine_id,
       routine_name: r.routine_name,
       exercise_name: name,
-      set_number: setNo,
+      set_number: nextSetNo,
       target_reps: target,
       actual_reps: reps,
       weight,
@@ -730,6 +757,7 @@ async function logSet(btn, name, target, setNo) {
     });
 
     state.sessionId = result.session_id;
+    wrap.dataset.loggedSets = String(nextSetNo);
     wrap.style.borderLeft = '3px solid var(--lime)';
     toast('Set saved');
   } catch (e) {
@@ -807,7 +835,7 @@ function openProgression(id) {
       <label class="field">Notes<textarea id="pNotes">${esc(p.notes || '')}</textarea></label>
       <div class="modal-actions">
         <button class="btn secondary" onclick="closeModal()">Cancel</button>
-        <button class="btn primary" onclick="saveProgression('${esc(id || '')}')">Save progress</button>
+        <button class="btn primary" onclick="runButtonAction(this,'Updating...',()=>saveProgression('${esc(id || '')}'))">Save progress</button>
       </div>
     </div>
   </div>`;
@@ -869,15 +897,15 @@ async function renderFriends(root) {
       <p class="muted-block">Search for another Calisthenics OS username.</p>
       <div class="search-row">
         <input id="friendSearch" placeholder="Search username">
-        <button class="btn primary" onclick="searchFriend()">Search</button>
+        <button class="btn primary" onclick="runButtonAction(this,'Searching...',()=>searchFriend())">Search</button>
       </div>
       <div id="friendResults"></div>
       <div class="card-title" style="margin-top:25px"><h3>Friend requests</h3></div>
       ${data.incoming.map(f => `<div class="request-row">
         <div class="avatar">${esc(f.username[0].toUpperCase())}</div>
         <b style="flex:1;font-size:12px">${esc(f.username)}</b>
-        <button class="btn primary small-btn" onclick="respondFriend('${esc(f.friendship_id)}',true)">Accept</button>
-        <button class="btn secondary small-btn" onclick="respondFriend('${esc(f.friendship_id)}',false)">Decline</button>
+        <button class="btn primary small-btn" onclick="runButtonAction(this,'Accepting...',()=>respondFriend('${esc(f.friendship_id)}',true))">Accept</button>
+        <button class="btn secondary small-btn" onclick="runButtonAction(this,'Declining...',()=>respondFriend('${esc(f.friendship_id)}',false))">Decline</button>
       </div>`).join('') || '<p class="muted-block">No pending requests.</p>'}
     </div>
   </div>`;
@@ -890,7 +918,7 @@ async function searchFriend() {
     const users = await api('searchUsers', { query: q });
     $('friendResults').innerHTML = users.map(u => `<div class="request-row">
       <b style="flex:1;font-size:12px">${esc(u.username)}</b>
-      <button class="btn secondary small-btn" onclick="sendFriend('${esc(u.username)}')">Add friend</button>
+      <button class="btn secondary small-btn" onclick="runButtonAction(this,'Adding...',()=>sendFriend('${esc(u.username)}'))">Add friend</button>
     </div>`).join('') || '<p class="muted-block">No matching users found.</p>';
   } catch (e) {
     toast(e.message);

@@ -139,3 +139,17 @@ body:after { width:220px;height:220px;bottom:3%;left:-100px;background:var(--lim
 @media(prefers-reduced-motion:reduce) {
   *,*::before,*::after { animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important; }
 }
+
+
+/* Async button feedback + daily exercise progress */
+.btn:disabled { opacity:.78;cursor:wait;transform:none!important; }
+.btn.is-loading { pointer-events:none;filter:saturate(.88); }
+.btn-spinner { width:14px;height:14px;display:inline-block;flex:0 0 14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:btnSpin .7s linear infinite;vertical-align:-2px; }
+.btn.is-loading { display:inline-flex;align-items:center;justify-content:center;gap:8px; }
+@keyframes btnSpin { to { transform:rotate(360deg); } }
+.exercise-progress-track { height:4px;background:var(--panel2);border-radius:99px;overflow:hidden;margin-top:7px;max-width:340px; }
+.exercise-progress-fill { height:100%;background:var(--lime);border-radius:99px;transition:width .35s ease; }
+.routine-progress-row .routine-info { min-width:0;flex:1; }
+.routine-progress-row .pill { white-space:nowrap; }
+.status-complete { color:var(--lime);border-color:rgba(var(--accent-rgb),.35); }
+@media(max-width:520px) { .routine-progress-row { gap:8px; } .routine-progress-row .pill { font-size:8px;padding:5px 6px; } }
