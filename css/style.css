@@ -190,3 +190,17 @@ body:after { width:220px;height:220px;bottom:3%;left:-100px;background:var(--lim
 .body-content-grid > .card:first-child{grid-column:1/-1}
 .height-entry-card,.weight-entry-card{align-self:start}
 @media(max-width:900px){.body-content-grid > .card:first-child{grid-column:auto}}
+
+
+/* Profile section */
+.profile-layout { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:start; }
+.profile-layout .card { min-width:0; }
+.profile-divider { height:1px; background:var(--border,rgba(255,255,255,.10)); margin:20px 0; }
+.profile-body-card { margin-top:16px; }
+.profile-body-stats { display:flex; flex-wrap:wrap; gap:28px; }
+.profile-body-stats > div { display:flex; flex-direction:column; gap:7px; }
+.profile-body-stats small { color:var(--muted,#9ca3af); font-size:10px; letter-spacing:.12em; font-weight:700; }
+.profile-body-stats b { font-size:16px; }
+.profile-body-stats a { color:var(--accent,#8bd3a8); text-decoration:none; }
+.profile-body-stats a:hover { text-decoration:underline; }
+@media(max-width:850px) { .profile-layout { grid-template-columns:1fr; } }

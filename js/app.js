@@ -438,7 +438,8 @@ function navigate(page) {
     body: 'BMI & Body weight',
     consistency: 'Consistency',
     history: 'Workout history',
-    friends: 'Friends'
+    friends: 'Friends',
+    profile: 'Profile'
   };
 
   $('topTitle').textContent = names[page] || 'Dashboard';
@@ -465,6 +466,7 @@ async function renderPage() {
     if (state.page === 'consistency') await renderConsistency(root);
     if (state.page === 'history') await renderHistory(root);
     if (state.page === 'friends') await renderFriends(root);
+    if (state.page === 'profile') await renderProfile(root);
   } catch (e) {
     root.innerHTML = '<div class="empty">Could not load this section: ' + esc(e.message) + '</div>';
   }
@@ -871,7 +873,7 @@ async function renderBodyMetrics(root) {
   const entries = data.entries || [];
   const latest = entries[entries.length - 1];
   const height = Number(data.height_cm) || 0;
-  const bmi = latest && height ? latest.weight_kg / Math.pow(height / 100, 2) : 0;
+  const bmi = Number(data.bmi) || (latest && height ? latest.weight_kg / Math.pow(height / 100, 2) : 0);
   const bmiLabel = !bmi ? 'Not available' : bmi < 18.5 ? 'Below healthy range' : bmi < 25 ? 'Healthy range' : bmi < 30 ? 'Above healthy range' : 'High BMI range';
   const bmiTone = bmi >= 18.5 && bmi < 25 ? 'good' : 'neutral';
   const maxPoints = entries.slice(-30);
@@ -955,6 +957,137 @@ async function renderBodyMetrics(root) {
   });
 }
 
+
+
+async function renderProfile(root) {
+  const profile = await api('profile');
+  const user = state.user || {};
+  const dob = String(profile.date_of_birth || '');
+  const calculatedAge = dob ? Math.max(0, Math.floor((Date.now() - new Date(dob + 'T00:00:00').getTime()) / 31557600000)) : (profile.age || '');
+  root.innerHTML = `
+    <div class="section-head"><div><div class="eyebrow">ACCOUNT & PERSONAL DETAILS</div><h1>Your profile</h1><p>Manage your account and personal information.</p></div></div>
+    <div class="grid profile-layout">
+      <section class="card">
+        <div class="card-title"><div><h3>Account information</h3><p>Your login identity and security settings</p></div><span class="pill">ACCOUNT</span></div>
+        <form id="profileNameForm" class="body-form">
+          <label class="field">Display name<input id="profileDisplayName" maxlength="60" value="${esc(profile.display_name || user.display_name || '')}" placeholder="How should we call you?"></label>
+          <button class="btn primary" type="submit" id="saveDisplayNameBtn">Save display name</button>
+        </form>
+        <div class="profile-divider"></div>
+        <form id="usernameForm" class="body-form">
+          <label class="field">Username<input id="profileUsername" minlength="3" maxlength="32" pattern="[a-zA-Z0-9_]{3,32}" value="${esc(user.username || '')}" required></label>
+          <label class="field">Current password<input id="usernameCurrentPassword" type="password" autocomplete="current-password" required></label>
+          <button class="btn secondary" type="submit" id="changeUsernameBtn">Change username</button>
+        </form>
+        <div class="profile-divider"></div>
+        <form id="passwordForm" class="body-form">
+          <label class="field">Current password<input id="oldPassword" type="password" autocomplete="current-password" required></label>
+          <label class="field">New password<input id="newPassword" type="password" minlength="8" autocomplete="new-password" required></label>
+          <label class="field">Confirm new password<input id="confirmNewPassword" type="password" minlength="8" autocomplete="new-password" required></label>
+          <button class="btn secondary" type="submit" id="changePasswordBtn">Update password</button>
+        </form>
+        <div class="profile-divider"></div>
+        <button class="btn danger" id="profileLogoutBtn" type="button">Log out</button>
+      </section>
+      <section class="card">
+        <div class="card-title"><div><h3>Personal details</h3><p>Optional information stored in your private profile</p></div><span class="pill">PERSONAL</span></div>
+        <form id="personalDetailsForm" class="body-form">
+          <label class="field">Gender
+            <select id="profileGender"><option value="">Prefer not to say</option><option value="Male" ${profile.gender==='Male'?'selected':''}>Male</option><option value="Female" ${profile.gender==='Female'?'selected':''}>Female</option></select>
+          </label>
+          <label class="field">Date of birth<input id="profileDob" type="date" value="${esc(dob)}"></label>
+          <label class="field">Age (calculated from date of birth)<input id="profileAge" type="number" min="0" max="120" value="${esc(calculatedAge)}" readonly></label>
+          <label class="field">Religion <input id="profileReligion" maxlength="60" value="${esc(profile.religion || '')}" placeholder="Optional"></label>
+          <label class="field">Race / Ethnicity <input id="profileRace" maxlength="60" value="${esc(profile.race || '')}" placeholder="Optional"></label>
+          <label class="field">Country <input id="profileCountry" maxlength="80" value="${esc(profile.country || '')}" placeholder="Country"></label>
+          <button class="btn primary" type="submit" id="savePersonalBtn">Save personal details</button>
+        </form>
+      </section>
+    </div>
+    <section class="card profile-body-card">
+      <div class="card-title"><div><h3>Body information</h3><p>Height is saved once; daily weight records stay in BMI & Body weight.</p></div><span class="pill">BODY</span></div>
+      <div class="profile-body-stats">
+        <div><small>HEIGHT</small><b>${Number(profile.height_cm) ? Number(profile.height_cm).toFixed(1)+' cm' : 'Not set'}</b></div>
+        <div><small>BMI & WEIGHT</small><b><a href="#" id="goBodyMetrics">Open BMI tracker →</a></b></div>
+      </div>
+    </section>`;
+
+  $('profileDob').addEventListener('change', () => {
+    const v = $('profileDob').value;
+    $('profileAge').value = v ? Math.max(0, Math.floor((Date.now() - new Date(v+'T00:00:00').getTime()) / 31557600000)) : '';
+  });
+  $('goBodyMetrics').addEventListener('click', e => { e.preventDefault(); navigate('body'); });
+
+  $('profileNameForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = $('saveDisplayNameBtn');
+    await runButtonAction(btn, 'Saving...', async () => {
+      await api('saveProfile', { display_name: $('profileDisplayName').value });
+      state.user.display_name = $('profileDisplayName').value;
+      $('sideName').textContent = state.user.display_name || state.user.username;
+      toast('Display name updated');
+    }).catch(err => toast(err.message));
+  });
+
+  $('personalDetailsForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = $('savePersonalBtn');
+    await runButtonAction(btn, 'Saving...', async () => {
+      const dobValue = $('profileDob').value;
+      await api('saveProfile', {
+        gender: $('profileGender').value,
+        date_of_birth: dobValue,
+        age: $('profileAge').value,
+        religion: $('profileReligion').value,
+        race: $('profileRace').value,
+        country: $('profileCountry').value
+      });
+      toast('Personal details saved');
+    }).catch(err => toast(err.message));
+  });
+
+  $('usernameForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = $('changeUsernameBtn');
+    await runButtonAction(btn, 'Updating...', async () => {
+      const result = await rpc('changeUsername', {
+        token: state.token,
+        newUsername: $('profileUsername').value,
+        currentPassword: $('usernameCurrentPassword').value
+      });
+      state.user.username = result.username;
+      $('sideAvatar').textContent = result.username[0].toUpperCase();
+      $('topAvatar').textContent = result.username[0].toUpperCase();
+      $('usernameCurrentPassword').value = '';
+      toast('Username updated');
+    }).catch(err => toast(err.message));
+  });
+
+  $('passwordForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = $('changePasswordBtn');
+    if ($('newPassword').value !== $('confirmNewPassword').value) {
+      toast('New passwords do not match'); return;
+    }
+    await runButtonAction(btn, 'Updating...', async () => {
+      await rpc('changePassword', {
+        token: state.token,
+        oldPassword: $('oldPassword').value,
+        newPassword: $('newPassword').value
+      });
+      $('passwordForm').reset();
+      toast('Password updated successfully');
+    }).catch(err => toast(err.message));
+  });
+
+  $('profileLogoutBtn').addEventListener('click', async () => {
+    try { await rpc('logoutUser', state.token); } catch (e) {}
+    stopHeartbeat();
+    sessionStorage.removeItem('cos_token');
+    state.token = null; state.user = null;
+    showAuth();
+  });
+}
 
 async function renderConsistency(root) {
   const data = await api('consistency');

@@ -20,6 +20,7 @@ const ALLOWED_FUNCTIONS = [
   'getSessionUser',
   'logoutUser',
   'changePassword',
+  'changeUsername',
   'api'
 ];
 
