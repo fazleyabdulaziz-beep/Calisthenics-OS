@@ -1,123 +1,62 @@
-<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8">
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
-<style>
-:root{--bg:#151515;--card:#202020;--line:#333;--tx:#f4f4f2;--mut:#9a9a94;--ac:#c6ff00;--r:14px}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 Inter,system-ui,sans-serif}
-h1,h2,h3{font-family:'Barlow Condensed',Impact,sans-serif;margin:0;letter-spacing:.3px}
-h1{font-size:44px;line-height:1}h2{font-size:26px;margin-bottom:12px}
-button,input,select,textarea{font:inherit;color:inherit}
-button{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 16px;min-height:44px;cursor:pointer;transition:.15s}
-button:hover{border-color:var(--ac)}button.p{background:var(--ac);color:#111;border-color:var(--ac);font-weight:600}
-button.sm{min-height:36px;padding:4px 10px}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
-input,select{background:var(--in,#111);border:1px solid var(--line);border-radius:10px;padding:10px;min-height:44px;width:100%}
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;margin-bottom:14px}
-.mut{color:var(--mut)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}
-.stat b{display:block;font:700 34px 'Barlow Condensed',sans-serif;color:var(--ac)}
-.bar{height:10px;background:var(--in,#111);border-radius:9px;overflow:hidden}.bar i{display:block;height:100%;background:var(--ac);transition:width .5s}
-#app{display:flex;min-height:100vh}nav{width:210px;padding:20px 12px;border-right:1px solid var(--line);position:sticky;top:0;height:100vh}
-nav h3{font-size:24px;color:var(--ac);padding:0 10px 14px}nav button{display:block;width:100%;text-align:left;border:0;background:none;margin-bottom:4px}
-nav button.on{background:var(--card);color:var(--ac)}main{flex:1;padding:24px;max-width:900px;margin:0 auto;width:100%}
-.ex{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
-.ck{width:30px;height:30px;border-radius:50%;border:2px solid var(--mut);flex:none;display:grid;place-items:center;background:none;padding:0}
-.ck.d{background:var(--ac);border-color:var(--ac);color:#111;font-weight:700}.done{color:var(--mut)}
-.week{display:flex;gap:8px;align-items:flex-end;height:90px}.week div{flex:1;text-align:center;font-size:12px}.week i{display:block;background:var(--ac);border-radius:5px 5px 0 0;min-height:3px}
-.row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:6px;margin-bottom:6px}.row.h{font-size:12px;color:var(--mut)}
-.err{color:#ff6b6b;min-height:22px}#auth{max-width:360px;margin:12vh auto;padding:20px}#auth input{margin-bottom:10px}
-@media(max-width:700px){#app{flex-direction:column-reverse}nav{width:100%;height:auto;position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--bg);border:0;border-top:1px solid var(--line);padding:6px;z-index:5;overflow-x:auto}
-nav h3{display:none}nav button{text-align:center;flex:1;margin:0;font-size:12px;padding:6px 4px}main{padding:16px 14px 90px}h1{font-size:36px}}
-@media(prefers-reduced-motion:reduce){*{transition:none!important}}
-</style></head><body><div id="root"></div>
-<script>
-const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-const TODAY=iso(new Date()),TDAY=DAYS[(new Date().getDay()+6)%7];
-let S={tok:sessionStorage.getItem('t'),user:null,role:null,view:'Dashboard',routines:[],history:[],lib:[],skills:[],an:{weeks:[],prs:[]},tpl:[],logs:[],stats:null,users:[],edit:null,reg:false,err:''};
-function call(a,d){return new Promise((res,rej)=>google.script.run.withSuccessHandler(r=>{
- if(!r.ok){if(r.error==='SESSION'){out();return rej(new Error('Session expired. Log in again.'))}return rej(new Error(r.error))}res(r.data)}).withFailureHandler(e=>rej(e)).api(a,S.tok,d))}
-function out(){S.tok=null;S.user=null;sessionStorage.removeItem('t');render()}
-function enter(r){S.tok=r.token;S.user=r.username;S.role=r.role;sessionStorage.setItem('t',r.token);S.err='';load()}
-async function load(){try{const[me,ro,lg,st,sk,an]=await Promise.all([call('me'),call('routines'),call('logs',{date:TODAY}),call('stats',{today:TODAY}),call('skills'),call('analytics',{today:TODAY})]);
- S.user=me.username;S.role=me.role;S.routines=ro;S.logs=lg;S.stats=st;S.skills=sk;S.an=an;if(S.role==='admin'){S.users=await call('admin_users');S.tpl=await call('admin_templates')}render()}catch(e){S.err=e.message;render()}}
-const todayRoutines=()=>S.routines.filter(r=>r.day===TDAY&&r.exercises.length);
-const isDone=(rid,i)=>S.logs.some(l=>l.routineId===rid&&l.idx===i);
-function prog(){let t=0,d=0;todayRoutines().forEach(r=>r.exercises.forEach((e,i)=>{t++;if(isDone(r.id,i))d++}));return{t,d,p:t?Math.round(d/t*100):0}}
-function render(){
- if(!S.tok){$('#root').innerHTML=`<form id="auth" class="card"><h1>CALISTHENICS OS</h1><p class="mut">${S.reg?'Create your account':'Log in to train'}</p>
- <input name="username" placeholder="Username" autocomplete="username" required><input name="password" type="password" placeholder="Password" autocomplete="${S.reg?'new':'current'}-password" required>
- ${S.reg?'<input name="confirm" type="password" placeholder="Confirm password" required>':''}<div class="err">${esc(S.err)}</div>
- <button class="p" style="width:100%">${S.reg?'Create account':'Log in'}</button><p><button type="button" class="sm" id="sw" style="border:0;background:none">${S.reg?'I have an account':'Create an account'}</button></p></form>`;
- $('#sw').onclick=()=>{S.reg=!S.reg;S.err='';render()};
- $('#auth').onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));try{enter(await call(S.reg?'register':'login',d))}catch(x){S.err=x.message;render()}};return}
- if(!S.user){$('#root').innerHTML='<main><p class="mut">Loading…</p><p class="err">'+esc(S.err)+'</p></main>';load();return}
- const views=['Dashboard','My Workout','Daily Routine','Exercise Library','Progression','Workout History','Analytics','Profile','Settings'].concat(S.role==='admin'?['Admin']:[]);
- $('#root').innerHTML=`<div id="app"><nav><h3>CALISTHENICS OS</h3>${views.map(v=>`<button class="${v===S.view?'on':''}" data-v="${v}">${v}</button>`).join('')}</nav><main>${V[S.view]()}</main></div>`;
- document.querySelectorAll('nav [data-v]').forEach(b=>b.onclick=async()=>{S.view=b.dataset.v;S.edit=null;const L={'Workout History':['history','history'],'Exercise Library':['lib','lib'],'Progression':['skills','skills'],'Analytics':['analytics','an']}[S.view];if(L){try{S[L[1]]=await call(L[0],{today:TODAY})}catch(e){}}render()});
- document.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>H[b.dataset.a](b.dataset));
-}
-const bar=()=>{const p=prog();return`<p>Daily routine: ${p.d} / ${p.t} completed · ${p.p}%</p><div class="bar"><i style="width:${p.p}%"></i></div>`};
-const V={
-Dashboard(){const h=new Date().getHours(),g=h<12?'Good morning':h<18?'Good afternoon':'Good evening',s=S.stats,rs=todayRoutines();
- const ex=rs.reduce((n,r)=>n+r.exercises.length,0),sets=rs.reduce((n,r)=>n+r.exercises.reduce((a,e)=>a+e.sets,0),0);
- const mx=Math.max(1,...s.week.map(w=>w.n));
- return`<h1>${g}, ${esc(S.user)}</h1><p class="mut">${new Date().toDateString()}. Show up, do the work.</p>
- <div class="card"><h2>${rs.length?esc(rs.map(r=>r.name).join(' + ')):'Rest day'}</h2><p class="mut">${ex} exercises · ${sets} sets · about ${Math.round(sets*2.5)} min</p>${bar()}<p><button class="p" data-a="go">${rs.length?(prog().d?'Continue workout':'Start workout'):'Plan a routine'}</button></p></div>
- <div class="grid">${[['Workouts',s.workouts],['Streak (days)',s.streak],['Training days',s.days],['Total sets',s.sets],['Total reps',s.reps],['Weekly consistency',s.consistency+'%']].map(x=>`<div class="card stat"><b>${x[1]}</b>${x[0]}</div>`).join('')}</div>
- ${dashExtra()}<div class="card"><h2>This week</h2><div class="week">${s.week.map(w=>`<div><i style="height:${w.n/mx*70}px"></i>${DAYS[(new Date(w.date+'T12:00').getDay()+6)%7]}</div>`).join('')}</div></div>`},
-'My Workout'(){const rs=todayRoutines();if(!rs.length)return`<h1>My workout</h1><div class="card">Nothing scheduled for ${TDAY}. Assign a routine to this day under Daily Routine.</div>`;
- return`<h1>My workout</h1>${rs.map(r=>`<div class="card"><h2>${esc(r.name)}</h2>${r.exercises.map((e,i)=>`<div class="ex"><button class="ck ${isDone(r.id,i)?'d':''}" data-a="tg" data-r="${r.id}" data-i="${i}" aria-label="Mark ${esc(e.name)} done">${isDone(r.id,i)?'✓':''}</button>
- <div class="${isDone(r.id,i)?'done':''}"><b>${esc(e.name)}</b><br><span class="mut">${e.sets} × ${e.reps}${e.unit==='sec'?' sec':' reps'} · rest ${e.rest}s${e.note?' · '+esc(e.note):''}</span></div></div>`).join('')}</div>`).join('')}<div class="card">${bar()}</div>`},
-'Daily Routine'(){const e=S.edit;if(e)return`<h1>Edit routine</h1><div class="card"><input id="rn" value="${esc(e.name)}" placeholder="Routine name"><p><select id="rd"><option value="">No weekday</option>${DAYS.map(d=>`<option ${d===e.day?'selected':''}>${d}</option>`).join('')}</select></p>
- <div class="row h"><span>Exercise</span><span>Sets</span><span>Reps/sec</span><span>Unit</span><span>Rest s</span></div>
- ${e.exercises.map((x,i)=>`<div class="row"><input data-f="name" data-i="${i}" value="${esc(x.name)}"><input data-f="sets" data-i="${i}" type="number" value="${x.sets}"><input data-f="reps" data-i="${i}" type="number" value="${x.reps}">
- <select data-f="unit" data-i="${i}"><option ${x.unit==='reps'?'selected':''}>reps</option><option ${x.unit==='sec'?'selected':''}>sec</option></select><input data-f="rest" data-i="${i}" type="number" value="${x.rest}"></div>
- <div class="row" style="grid-template-columns:1fr auto auto auto"><input data-f="note" data-i="${i}" placeholder="Notes" value="${esc(x.note||'')}"><button class="sm" data-a="up" data-i="${i}" aria-label="Move up">↑</button><button class="sm" data-a="dn" data-i="${i}" aria-label="Move down">↓</button><button class="sm" data-a="rm" data-i="${i}">Remove</button></div>`).join('')}
- <p><button data-a="ax">Add exercise</button> <button class="p" data-a="sv">Save routine</button> <button data-a="cx">Cancel</button></p><div class="err">${esc(S.err)}</div></div>`;
- return`<h1>Daily routine</h1><p><button class="p" data-a="nw">New routine</button></p>${S.routines.map(r=>`<div class="card"><h2>${esc(r.name)}</h2><p class="mut">${r.day||'Unassigned'} · ${r.exercises.length} exercises</p>
- <button class="sm" data-a="ed" data-id="${r.id}">Edit</button> <button class="sm" data-a="dp" data-id="${r.id}">Duplicate</button> <button class="sm" data-a="dl" data-id="${r.id}">Delete</button></div>`).join('')}`},
-'Workout History'(){if(!S.history.length)return`<h1>Workout history</h1><div class="card">No workouts logged yet. Tick off an exercise in My Workout and it will show up here.</div>`;
- return`<h1>Workout history</h1>${S.history.map(h=>{const sets=h.items.reduce((n,x)=>n+x.sets,0);return`<div class="card"><h2>${new Date(h.date+'T12:00').toDateString()}</h2><p class="mut">${h.items.length} exercises · ${sets} sets</p>
- ${h.items.map(x=>`<div class="ex"><span class="ck d" aria-hidden="true">✓</span><div><b>${esc(x.name)}</b><br><span class="mut">${esc(x.routine)} · ${x.sets} × ${x.reps}</span></div></div>`).join('')}</div>`}).join('')}`},
-'Exercise Library'(){return`<h1>Exercise library</h1><div class="card"><input placeholder="Search exercises" oninput="S.q=this.value;fl()"><p><select onchange="S.target=this.value">${S.routines.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('')}</select></p><p class="mut">Choose a routine, then add exercises to it.</p></div><div id="ll">${libList()}</div>
- <div class="card"><h2>Add your own</h2><input id="ln" placeholder="Exercise name"><p><input id="lc" placeholder="Category (Push, Pull, Legs, Core)"></p><div class="grid"><select id="lu"><option>reps</option><option>sec</option></select><input id="ls" type="number" value="3"><input id="lr" type="number" value="10"></div>${S.role==='admin'?'<p><label><input type="checkbox" id="lg" style="width:auto"> Share with all users</label></p>':''}<p><button class="p" data-a="nl">Save exercise</button></p></div>`},
-Progression(){return`<h1>Progression</h1>${S.skills.map(k=>`<div class="card"><h2>${esc(k.skill)}</h2><p class="mut">Step ${k.level+1} of ${k.steps.length}: ${esc(k.steps[k.level])}</p><div class="bar"><i style="width:${Math.round((k.level+1)/k.steps.length*100)}%"></i></div><p>${k.steps.map((s,i)=>`<button class="sm ${i===k.level?'p':''}" data-a="lv" data-s="${esc(k.skill)}" data-l="${i}">${esc(s)}</button>`).join(' ')}</p></div>`).join('')}`},
-Analytics(){const w=S.an.weeks,mx=Math.max(1,...w);return`<h1>Analytics</h1><div class="card"><h2>Sets per week</h2><div class="week">${w.map(n=>`<div><i style="height:${n/mx*70}px"></i>${n}</div>`).join('')}</div><p class="mut">Last 8 weeks, oldest on the left.</p></div><div class="card"><h2>Personal records</h2>${S.an.prs.length?S.an.prs.map(p=>`<div class="ex"><b>${esc(p.name)}</b><span class="mut">best ${p.best} ${p.unit}</span></div>`).join(''):'<p class="mut">Log workouts to set records.</p>'}</div>`},
-Settings(){return`<h1>Settings</h1><div class="card"><p>Theme</p><select onchange="setCfg('theme',this.value)"><option value="dark" ${cfg.theme==='dark'?'selected':''}>Dark</option><option value="light" ${cfg.theme==='light'?'selected':''}>Light</option></select><p>Accent color</p><input type="color" value="${cfg.accent}" onchange="setCfg('accent',this.value)"><p class="mut">Saved on this device.</p></div>`},
-Profile(){return`<h1>Profile</h1><div class="card"><p>Signed in as <b>${esc(S.user)}</b>${S.role==='admin'?' (admin)':''}</p><input id="np" type="password" placeholder="New password (8+ characters)"><p><button data-a="pw">Change password</button> <button class="p" data-a="lo">Log out</button></p><div class="err">${esc(S.err)}</div></div>`},
-Admin(){return`<h1>Admin</h1>${S.users.map(u=>`<div class="card"><b>${esc(u.username)}</b> <span class="mut">${u.role} · ${u.sets} logged exercises · ${u.active?'active':'deactivated'}</span>${u.role==='admin'?'':`<p><button class="sm" data-a="ac" data-u="${esc(u.username)}" data-on="${u.active?'':'1'}">${u.active?'Deactivate':'Activate'}</button> <button class="sm" data-a="rp" data-u="${esc(u.username)}">Reset password</button></p>`}</div>`).join('')}
- <h2>Default templates</h2>${S.tpl.map(t=>`<div class="card"><b>${esc(t.name)}</b> <span class="mut">${t.day||'Unassigned'}</span> <button class="sm" data-a="et" data-id="${t.id}">Edit</button></div>`).join('')}<button data-a="nt">New template</button><p class="mut">Template changes apply to new accounts only.</p>`}};
-function grab(){if(!S.edit)return;S.edit.name=$('#rn').value;S.edit.day=$('#rd').value;document.querySelectorAll('[data-f]').forEach(i=>S.edit.exercises[+i.dataset.i][i.dataset.f]=i.type==='number'?+i.value:i.value)}
-let cfg={theme:'dark',accent:'#c6ff00'};try{cfg=Object.assign(cfg,JSON.parse(localStorage.getItem('cfg')))}catch(e){}
-function applyCfg(){const s=document.documentElement.style,l=cfg.theme==='light';[['--bg',l?'#f2f2ee':'#151515'],['--card',l?'#fff':'#202020'],['--line',l?'#d8d8d2':'#333'],['--tx',l?'#171717':'#f4f4f2'],['--mut',l?'#6b6b66':'#9a9a94'],['--in',l?'#f2f2ee':'#111'],['--ac',cfg.accent]].forEach(x=>s.setProperty(x[0],x[1]))}
-function setCfg(k,v){cfg[k]=v;try{localStorage.setItem('cfg',JSON.stringify(cfg))}catch(e){}applyCfg()}
-function dashExtra(){const k=S.skills.find(x=>x.level<x.steps.length-1)||S.skills[0];
- return`<div class="grid"><div class="card stat"><b>${S.an.prs.length}</b>Personal records</div></div>`+(k?`<div class="card"><h2>${esc(k.skill)}</h2><p class="mut">Now: ${esc(k.steps[k.level])}${k.level<k.steps.length-1?' · Next: '+esc(k.steps[k.level+1]):' · Top level'}</p><div class="bar"><i style="width:${Math.round((k.level+1)/k.steps.length*100)}%"></i></div></div>`:'')}
-function libList(){const q=(S.q||'').toLowerCase();return S.lib.filter(x=>x.name.toLowerCase().includes(q)).map(x=>`<div class="card"><b>${esc(x.name)}</b> <span class="mut">${esc(x.category)} · ${x.sets} × ${x.reps} ${x.unit}</span><p><button class="sm" data-a="ul" data-id="${x.id}">Add to routine</button>${x.mine||S.role==='admin'?` <button class="sm" data-a="ld" data-id="${x.id}">Delete</button>`:''}</p></div>`).join('')||'<p class="mut">No matches.</p>'}
-function fl(){$('#ll').innerHTML=libList();$('#ll').querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>H[b.dataset.a](b.dataset))}
-const H={
-async ul(d){const r=S.routines.find(x=>x.id===(S.target||(S.routines[0]||{}).id)),e=S.lib.find(x=>x.id===d.id);if(!r)return alert('Create a routine first.');
- r.exercises.push({name:e.name,sets:e.sets,reps:e.reps,unit:e.unit,rest:60,note:''});try{await call('routine_save',r);alert('Added to '+r.name)}catch(x){alert(x.message)}},
-async nl(){try{await call('lib_save',{name:$('#ln').value,category:$('#lc').value,unit:$('#lu').value,sets:$('#ls').value,reps:$('#lr').value,global:$('#lg')&&$('#lg').checked});S.lib=await call('lib');render()}catch(e){alert(e.message)}},
-async ld(d){if(confirm('Delete this exercise?')){try{await call('lib_delete',{id:d.id});S.lib=await call('lib');render()}catch(e){alert(e.message)}}},
-async lv(d){try{await call('skill_set',{skill:d.s,level:+d.l});S.skills=await call('skills');render()}catch(e){alert(e.message)}},
-et(d){S.edit=JSON.parse(JSON.stringify(S.tpl.find(r=>r.id===d.id)));S.edit.template=true;S.view='Daily Routine';S.err='';render()},
-nt(){S.edit={template:true,name:'New template',day:'',exercises:[{name:'Push-ups',sets:3,reps:10,unit:'reps',rest:60,note:''}]};S.view='Daily Routine';S.err='';render()},
-go(){S.view=todayRoutines().length?'My Workout':'Daily Routine';render()},
-async tg(d){try{await call('toggle',{date:TODAY,routineId:d.r,idx:+d.i});S.logs=await call('logs',{date:TODAY});S.stats=await call('stats',{today:TODAY});render()}catch(e){alert(e.message)}},
-nw(){S.edit={name:'New routine',day:'',exercises:[{name:'Push-ups',sets:3,reps:10,unit:'reps',rest:60,note:''}]};S.err='';render()},
-ed(d){S.edit=JSON.parse(JSON.stringify(S.routines.find(r=>r.id===d.id)));S.err='';render()},
-ax(){grab();S.edit.exercises.push({name:'',sets:3,reps:10,unit:'reps',rest:60,note:''});render()},
-rm(d){grab();S.edit.exercises.splice(+d.i,1);render()},
-up(d){grab();const a=S.edit.exercises,i=+d.i;if(i>0)[a[i-1],a[i]]=[a[i],a[i-1]];render()},
-dn(d){grab();const a=S.edit.exercises,i=+d.i;if(i<a.length-1)[a[i+1],a[i]]=[a[i],a[i+1]];render()},
-cx(){S.edit=null;render()},
-async sv(){grab();try{await call('routine_save',S.edit);S.edit=null;await load()}catch(e){S.err=e.message;render()}},
-async dp(d){await call('routine_duplicate',{id:d.id});load()},
-async dl(d){if(confirm('Delete this routine?')){await call('routine_delete',{id:d.id});load()}},
-async lo(){try{await call('logout')}catch(e){}out()},
-async pw(){try{await call('change_pw',{password:$('#np').value});S.err='Password changed.'}catch(e){S.err=e.message}render()},
-async ac(d){await call('admin_active',{username:d.u,active:!!d.on});load()},
-async rp(d){const p=prompt('New password for '+d.u+' (8+ characters)');if(p){try{await call('admin_reset',{username:d.u,password:p});alert('Password reset.')}catch(e){alert(e.message)}}}};
-applyCfg();S.tok?load():render();
-</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d120e">
+  <meta name="description" content="Calisthenics OS — your personal training command center.">
+  <title>Calisthenics OS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+  <div id="boot" class="boot-screen">
+    <div class="boot-mark">C<span>.</span></div>
+    <div class="loader"></div>
+    <p>BUILDING YOUR MOMENTUM</p>
+  </div>
+
+  <section id="authView" class="auth-wrap hidden">
+    <div class="auth-brand"><div class="brand-mark">C<span>.</span></div><div><b>CALISTHENICS OS</b><small>TRAIN WITH INTENTION</small></div></div>
+    <div class="auth-card">
+      <div class="eyebrow">YOUR TRAINING SPACE</div>
+      <h1 id="authTitle">Welcome back.</h1>
+      <p class="muted" id="authSubtitle">Sign in and keep your momentum.</p>
+      <form id="authForm">
+        <label>Username<input id="authUsername" autocomplete="username" minlength="3" required placeholder="your_username"></label>
+        <label>Password<input id="authPassword" type="password" autocomplete="current-password" minlength="8" required placeholder="At least 8 characters"></label>
+        <label id="confirmWrap" class="hidden">Confirm password<input id="authConfirm" type="password" minlength="8" placeholder="Repeat password"></label>
+        <button class="btn primary full" id="authSubmit">Sign in <span>→</span></button>
+      </form>
+      <p class="auth-switch"><span id="switchText">New here?</span> <button class="text-btn" id="switchAuth" type="button">Create account</button></p>
+      <div id="authError" class="error-text"></div>
+    </div>
+    <p class="auth-foot">CONSISTENCY OVER INTENSITY.</p>
+  </section>
+
+  <div id="appView" class="app-shell hidden">
+    <aside class="sidebar">
+      <div class="side-brand"><div class="brand-mark">C<span>.</span></div><div><b>CALISTHENICS</b><small>OS / TRAINING</small></div></div>
+      <div class="side-label">WORKSPACE</div>
+      <nav id="mainNav">
+        <button class="nav-item active" data-page="dashboard"><i>⌂</i> Dashboard</button>
+        <button class="nav-item" data-page="routines"><i>▤</i> My routines</button>
+        <button class="nav-item" data-page="workout"><i>◎</i> Workout log</button>
+        <button class="nav-item" data-page="progression"><i>↗</i> Progression</button>
+        <button class="nav-item" data-page="history"><i>◷</i> History</button>
+        <button class="nav-item" data-page="friends"><i>♧</i> Friends <span id="friendBadge" class="nav-badge hidden">0</span></button>
+      </nav>
+      <div class="sidebar-bottom"><div class="mini-profile"><div class="avatar" id="sideAvatar">U</div><div class="profile-meta"><b id="sideName">Athlete</b><small>MEMBER</small></div><button id="logoutBtn" class="icon-btn" title="Log out">↗</button></div></div>
+    </aside>
+    <main class="main-area">
+      <header class="topbar"><button id="mobileMenu" class="icon-btn mobile-only">☰</button><div><div class="eyebrow" id="topEyebrow">OVERVIEW</div><div class="top-title" id="topTitle">Dashboard</div></div><div class="top-actions"><span class="live-dot"></span><span class="muted tiny">SYNCED</span><div class="avatar small" id="topAvatar">U</div></div></header>
+      <div id="pageContent" class="page-content"></div>
+    </main>
+  </div>
+  <div id="toast" class="toast"></div>
+  <div id="modalRoot"></div>
+  <script src="js/config.js" defer></script>
+  <script src="js/app.js" defer></script>
+</body>
+</html>
