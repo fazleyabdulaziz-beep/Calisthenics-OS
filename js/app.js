@@ -63,3 +63,14 @@ function stopHeartbeat(){if(state.heartbeat)clearInterval(state.heartbeat);if(st
 async function boot(){const token=sessionStorage.getItem('cos_token');if(token){state.token=token;try{const result=await rpc('getSessionUser',token);state.user=result.user;showApp();return;}catch(e){sessionStorage.removeItem('cos_token');state.token=null;}}
 showAuth();}
 window.addEventListener('load',boot);
+const passwordInput = document.getElementById('password');
+const passwordError = document.getElementById('passwordError');
+
+passwordInput.addEventListener('input', () => {
+  if (passwordInput.value.length < 8) {
+    passwordError.textContent =
+      'Password must be at least 8 characters.';
+  } else {
+    passwordError.textContent = '';
+  }
+});
