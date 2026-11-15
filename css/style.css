@@ -185,3 +185,8 @@ body:after { width:220px;height:220px;bottom:3%;left:-100px;background:var(--lim
 .consistency-denom{font-size:15px;color:var(--muted);margin-left:3px}.consistency-heat-card{margin-top:16px}.consistency-heatmap{display:grid;grid-template-columns:repeat(15,minmax(0,1fr));gap:7px;margin:14px 0}.consistency-heat{width:100%;aspect-ratio:1;border-radius:4px;background:var(--panel2);display:inline-block}.consistency-heat.level-1{background:color-mix(in srgb,var(--lime) 28%,var(--panel2))}.consistency-heat.level-2{background:color-mix(in srgb,var(--lime) 48%,var(--panel2))}.consistency-heat.level-3{background:color-mix(in srgb,var(--lime) 72%,var(--panel2))}.consistency-heat.level-4{background:var(--lime);box-shadow:0 0 8px var(--glow)}.consistency-note{margin-top:16px;margin-bottom:0}
 @media(max-width:900px){.consistency-content{grid-template-columns:1fr}.consistency-chart{gap:3px;height:160px}}
 @media(max-width:520px){.consistency-heatmap{grid-template-columns:repeat(10,minmax(0,1fr));gap:6px}.consistency-chart{grid-template-columns:repeat(30,minmax(2px,1fr));gap:2px}.consistency-day-row{grid-template-columns:58px 1fr auto;font-size:10px}}
+
+/* Keep Height and Daily Weight in completely separate cards. */
+.body-content-grid > .card:first-child{grid-column:1/-1}
+.height-entry-card,.weight-entry-card{align-self:start}
+@media(max-width:900px){.body-content-grid > .card:first-child{grid-column:auto}}

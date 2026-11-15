@@ -899,18 +899,21 @@ async function renderBodyMetrics(root) {
     </div>
     <div class="grid body-content-grid">
       <div class="card"><div class="card-title"><div><h3>Daily weight trend</h3><p>Last 30 entries · ${entries.length} total records</p></div><span class="pill">KG</span></div>${chart}</div>
-      <div class="card"><div class="card-title"><div><h3>Height</h3><p>Save once to your profile. It does not need daily updates.</p></div></div>
+      <div class="card height-entry-card">
+        <div class="card-title"><div><h3>Height</h3><p>Profile measurement · Save once, update only if it changes.</p></div><span class="pill">PROFILE</span></div>
         <form id="bodyHeightForm" class="body-form">
           <label class="field">Height (cm)<input id="bodyHeight" type="number" min="80" max="250" step="0.1" value="${height || ''}" placeholder="e.g. 172" required></label>
           <button class="btn primary full" id="saveHeightBtn" type="submit">${height ? 'Update height' : 'Save height'}</button>
         </form>
-        <div class="divider" style="margin:18px 0"></div>
-        <div class="card-title"><div><h3>Today's weight</h3><p>One entry per day. Saving again updates today's entry.</p></div></div>
+        <p class="muted-block">This value is saved to your profile and is not part of daily weight records.</p>
+      </div>
+      <div class="card weight-entry-card">
+        <div class="card-title"><div><h3>Daily weight</h3><p>One entry per day. Saving again updates today's entry.</p></div><span class="pill">KG</span></div>
         <form id="bodyWeightForm" class="body-form">
           <label class="field">Weight (kg)<input id="bodyWeight" type="number" min="20" max="400" step="0.1" value="${latest && latest.date === new Date().toLocaleDateString('en-CA', {timeZone:'Asia/Singapore'}) ? latest.weight_kg : ''}" placeholder="e.g. 68.5" required></label>
           <button class="btn primary full" id="saveBodyMetricsBtn" type="submit">Save today's weight</button>
         </form>
-        <p class="muted-block">Height is stored once in your profile. Weight is recorded by date.</p>
+        <p class="muted-block">Only your body weight is recorded in the daily log.</p>
       </div>
     </div>
     <div class="card" style="margin-top:16px"><div class="card-title"><div><h3>Recent entries</h3><p>Your latest daily measurements</p></div></div>
