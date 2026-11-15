@@ -9,8 +9,152 @@ const state = {
   sessionId: null,
   workoutStarted: null,
   authMode: 'login',
-  heartbeat: null
+  heartbeat: null,
+  deferredInstallPrompt: null
 };
+
+
+// ---------------------------------------------------------
+// THEMES
+// ---------------------------------------------------------
+
+const COS_THEMES = ['forest', 'ocean', 'sunset', 'midnight', 'violet'];
+
+function applyTheme(theme, persist = true) {
+  const selected = COS_THEMES.includes(theme) ? theme : 'forest';
+  document.documentElement.dataset.theme = selected;
+
+  const appSelect = $('themeSelect');
+  const authSelect = $('themeSelectAuth');
+  if (appSelect) appSelect.value = selected;
+  if (authSelect) authSelect.value = selected;
+
+  const colors = {
+    forest: '#0d120e',
+    ocean: '#08151d',
+    sunset: '#1b1112',
+    midnight: '#0b0d18',
+    violet: '#130f1d'
+  };
+  const themeColor = document.querySelector('meta[name="theme-color"]');
+  if (themeColor) themeColor.setAttribute('content', colors[selected]);
+
+  if (persist) {
+    try { localStorage.setItem('cos_theme', selected); } catch (e) {}
+  }
+}
+
+function initThemes() {
+  let saved = 'forest';
+  try { saved = localStorage.getItem('cos_theme') || 'forest'; } catch (e) {}
+  applyTheme(saved, false);
+
+  ['themeSelect', 'themeSelectAuth'].forEach(id => {
+    const control = $(id);
+    if (control) control.addEventListener('change', () => applyTheme(control.value));
+  });
+}
+
+// ---------------------------------------------------------
+// PASSWORD VISIBILITY
+// ---------------------------------------------------------
+
+document.addEventListener('click', event => {
+  const toggle = event.target.closest('[data-password-toggle]');
+  if (!toggle) return;
+
+  const input = $(toggle.dataset.passwordToggle);
+  if (!input) return;
+
+  const reveal = input.type === 'password';
+  input.type = reveal ? 'text' : 'password';
+  toggle.textContent = reveal ? 'Hide' : 'Show';
+  toggle.setAttribute('aria-label', reveal ? 'Hide password' : 'Show password');
+  toggle.setAttribute('aria-pressed', String(reveal));
+});
+
+// ---------------------------------------------------------
+// PWA INSTALL
+// ---------------------------------------------------------
+
+function isIosDevice() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+function isStandaloneApp() {
+  return window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true;
+}
+
+function showIosInstallGuide() {
+  $('modalRoot').innerHTML = `
+    <div class="modal-backdrop" onclick="if(event.target===this)closeModal()">
+      <div class="modal install-guide">
+        <div class="install-guide-icon">＋</div>
+        <div class="eyebrow">INSTALL ON IPHONE / IPAD</div>
+        <h2>Add Calisthenics OS to Home Screen</h2>
+        <ol class="install-steps">
+          <li>Open this website in <b>Safari</b>.</li>
+          <li>Tap the <b>Share</b> button <span class="share-symbol">↑</span>.</li>
+          <li>Scroll down and choose <b>Add to Home Screen</b>.</li>
+          <li>Tap <b>Add</b> to finish.</li>
+        </ol>
+        <p class="muted-block">iOS does not allow websites to trigger installation directly. Use Safari's Share menu to install the app.</p>
+        <div class="modal-actions">
+          <button class="btn primary" onclick="closeModal()">Got it</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function installApp() {
+  if (isStandaloneApp()) {
+    toast('Calisthenics OS is already installed.');
+    return;
+  }
+
+  if (isIosDevice()) {
+    showIosInstallGuide();
+    return;
+  }
+
+  if (state.deferredInstallPrompt) {
+    state.deferredInstallPrompt.prompt();
+    const result = await state.deferredInstallPrompt.userChoice;
+    state.deferredInstallPrompt = null;
+    if (result && result.outcome === 'accepted') {
+      toast('Installation started.');
+    }
+    return;
+  }
+
+  toast('Use your browser menu and choose Install app or Add to Home Screen.');
+}
+
+function initPwaInstall() {
+  const installButton = $('installAppBtn');
+  if (!installButton) return;
+
+  if (isStandaloneApp()) {
+    installButton.classList.add('hidden');
+    return;
+  }
+
+  installButton.addEventListener('click', installApp);
+
+  window.addEventListener('beforeinstallprompt', event => {
+    event.preventDefault();
+    state.deferredInstallPrompt = event;
+    installButton.classList.remove('hidden');
+  });
+
+  window.addEventListener('appinstalled', () => {
+    state.deferredInstallPrompt = null;
+    installButton.classList.add('hidden');
+    toast('Calisthenics OS installed.');
+  });
+}
 
 async function rpc(fn, ...args) {
   const endpoint = window.COS_CONFIG?.API_URL;
@@ -72,6 +216,9 @@ function esc(s) {
     "'": '&#39;'
   }[c]));
 }
+
+initThemes();
+initPwaInstall();
 
 function hideBoot() {
   const b = $('boot');
@@ -281,7 +428,11 @@ function navigate(page) {
 async function renderPage() {
   const root = $('pageContent');
 
-  root.innerHTML = '<div class="empty"><div class="loader" style="margin:0 auto 15px"></div>Loading your training space…</div>';
+  root.innerHTML = `<div class="loading-state">
+    <div class="loading-spinner"></div>
+    <div class="loading-copy"><b>Preparing your training space</b><span>Syncing your progress and routines…</span></div>
+    <div class="loading-skeleton"><i></i><i></i><i></i></div>
+  </div>`;
 
   try {
     if (state.page === 'dashboard') await renderDashboard(root);
@@ -304,7 +455,10 @@ async function renderDashboard(root) {
 
   state.routines = d.routines || [];
 
-  const r = d.todayRoutine;
+  // Everyday routines are selected client-side as a fallback for older Apps Script deployments.
+  const r = d.todayRoutine || (d.routines || []).find(item =>
+    String(item.assigned_day || '').toLowerCase() === 'everyday'
+  );
   const done = new Set(d.completedExercises || []);
   const items = r?.exercises || [];
   const pct = items.length ? Math.round(done.size / items.length * 100) : 0;
@@ -408,7 +562,7 @@ function openRoutine(id) {
     <div class="modal">
       <h2>${r ? 'Edit routine' : 'Create routine'}</h2>
       <label class="field">Routine name<input id="rName" value="${esc(r?.routine_name || '')}" placeholder="e.g. Upper body"></label>
-      <label class="field">Training day<select id="rDay">${['Unscheduled', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(d => `<option ${r?.assigned_day === d ? 'selected' : ''}>${d}</option>`).join('')}</select></label>
+      <label class="field">Training day<select id="rDay">${['Unscheduled', 'Everyday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(d => `<option ${r?.assigned_day === d ? 'selected' : ''}>${d}</option>`).join('')}</select></label>
       <label class="field">Description<input id="rDesc" value="${esc(r?.description || '')}" placeholder="Focus for this session"></label>
       <div class="card-title"><h3>Exercises</h3><button class="btn secondary small-btn" onclick="addExerciseEditor()">+ Add exercise</button></div>
       <div id="exerciseEditors">${ex.map(exerciseEditor).join('')}</div>

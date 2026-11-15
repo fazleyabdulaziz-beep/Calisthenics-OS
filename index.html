@@ -5,6 +5,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0d120e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Calisthenics OS">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./assets/icon-180.png">
   <meta name="description" content="Calisthenics OS — your personal training command center.">
 
   <title>Calisthenics OS</title>
@@ -23,8 +28,10 @@
   <!-- BOOT SCREEN -->
   <div id="boot" class="boot-screen">
     <div class="boot-mark">C<span>.</span></div>
-    <div class="loader"></div>
+    <div class="boot-orbit"><div class="boot-orbit-core">C<span>.</span></div></div>
+    <div class="loader"><span></span></div>
     <p>BUILDING YOUR MOMENTUM</p>
+    <small class="boot-caption">PREPARING YOUR TRAINING SPACE</small>
   </div>
 
 
@@ -64,25 +71,31 @@
 
         <label>
           Password
-          <input
-            id="authPassword"
-            type="password"
-            autocomplete="current-password"
-            minlength="8"
-            required
-            placeholder="At least 8 characters"
-          >
+          <div class="password-wrap">
+            <input
+              id="authPassword"
+              type="password"
+              autocomplete="current-password"
+              minlength="8"
+              required
+              placeholder="At least 8 characters"
+            >
+            <button class="password-toggle" type="button" data-password-toggle="authPassword" aria-label="Show password" aria-pressed="false">Show</button>
+          </div>
           <small id="passwordError" class="field-error"></small>
         </label>
 
         <label id="confirmWrap" class="hidden">
           Confirm password
-          <input
-            id="authConfirm"
-            type="password"
-            minlength="8"
-            placeholder="Repeat password"
-          >
+          <div class="password-wrap">
+            <input
+              id="authConfirm"
+              type="password"
+              minlength="8"
+              placeholder="Repeat password"
+            >
+            <button class="password-toggle" type="button" data-password-toggle="authConfirm" aria-label="Show password" aria-pressed="false">Show</button>
+          </div>
         </label>
 
         <button class="btn primary full" id="authSubmit">
@@ -102,7 +115,18 @@
 
     </div>
 
-    <p class="auth-foot">CONSISTENCY OVER INTENSITY.</p>
+    <div class="auth-foot auth-controls">
+      <label class="theme-control" for="themeSelectAuth">THEME
+        <select id="themeSelectAuth" aria-label="Choose app theme">
+          <option value="forest">Forest</option>
+          <option value="ocean">Ocean</option>
+          <option value="sunset">Sunset</option>
+          <option value="midnight">Midnight</option>
+          <option value="violet">Violet</option>
+        </select>
+      </label>
+      <span>CONSISTENCY OVER INTENSITY.</span>
+    </div>
 
   </section>
 
@@ -187,8 +211,21 @@
         </div>
 
         <div class="top-actions">
+          <label class="theme-control app-theme-control" for="themeSelect" title="Choose colour theme">
+            <span class="theme-label">THEME</span>
+            <select id="themeSelect" aria-label="Choose app theme">
+              <option value="forest">Forest</option>
+              <option value="ocean">Ocean</option>
+              <option value="sunset">Sunset</option>
+              <option value="midnight">Midnight</option>
+              <option value="violet">Violet</option>
+            </select>
+          </label>
+          <button id="installAppBtn" class="btn secondary install-btn" type="button">
+            <span aria-hidden="true">↓</span> Install app
+          </button>
           <span class="live-dot"></span>
-          <span class="muted tiny">SYNCED</span>
+          <span class="muted tiny sync-label">SYNCED</span>
           <div class="avatar small" id="topAvatar">U</div>
         </div>
 
@@ -209,6 +246,15 @@
   <!-- JAVASCRIPT -->
   <script src="./js/config.js" defer></script>
   <script src="./js/app.js" defer></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js').catch(error => {
+          console.warn('Service worker registration failed:', error);
+        });
+      });
+    }
+  </script>
 
 </body>
 </html>

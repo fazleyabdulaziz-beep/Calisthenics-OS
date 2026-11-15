@@ -9,3 +9,133 @@
   font-size: 12px;
   margin-top: 6px;
 }
+
+/* =========================================================
+   CALISTHENICS OS - THEME SYSTEM, MOTION & PWA UI
+   ========================================================= */
+
+:root {
+  --accent-rgb: 199,243,107;
+  --glow: rgba(199,243,107,.13);
+  --surface-deep: #0b100c;
+  color-scheme: dark;
+}
+:root[data-theme="ocean"] {
+  --bg:#08151d;--panel:#10232d;--panel2:#17313d;--line:#294653;
+  --text:#eaf7fb;--muted:#8ba9b5;--lime:#61d9e8;--lime2:#36bfd1;
+  --red:#ff8585;--accent-rgb:97,217,232;--glow:rgba(97,217,232,.15);--surface-deep:#061018;
+}
+:root[data-theme="sunset"] {
+  --bg:#1b1112;--panel:#29191a;--panel2:#382021;--line:#523033;
+  --text:#fff1e9;--muted:#b99b91;--lime:#ffad70;--lime2:#f28b55;
+  --red:#ff8585;--accent-rgb:255,173,112;--glow:rgba(255,173,112,.15);--surface-deep:#140c0d;
+}
+:root[data-theme="midnight"] {
+  --bg:#0b0d18;--panel:#15182a;--panel2:#1d2138;--line:#303653;
+  --text:#f0f2ff;--muted:#9299b7;--lime:#a9b8ff;--lime2:#8296f4;
+  --red:#ff8585;--accent-rgb:169,184,255;--glow:rgba(169,184,255,.16);--surface-deep:#080a13;
+}
+:root[data-theme="violet"] {
+  --bg:#130f1d;--panel:#20182e;--panel2:#2a2040;--line:#443357;
+  --text:#f7f0ff;--muted:#aa9bbd;--lime:#d4a4ff;--lime2:#b77be9;
+  --red:#ff8585;--accent-rgb:212,164,255;--glow:rgba(212,164,255,.16);--surface-deep:#0e0a17;
+}
+
+html { min-height:100%; background:var(--bg); }
+body {
+  background:
+    radial-gradient(ellipse at 12% 8%, var(--glow), transparent 34%),
+    radial-gradient(ellipse at 88% 82%, rgba(var(--accent-rgb),.055), transparent 30%),
+    var(--bg);
+  transition:background .45s ease,color .35s ease;
+}
+body:before, body:after {
+  content:"";position:fixed;z-index:-1;pointer-events:none;border-radius:50%;
+  filter:blur(65px);opacity:.13;animation:ambientDrift 18s ease-in-out infinite alternate;
+}
+body:before { width:260px;height:260px;top:14%;right:-100px;background:var(--lime); }
+body:after { width:220px;height:220px;bottom:3%;left:-100px;background:var(--lime2);animation-delay:-8s; }
+@keyframes ambientDrift { from{transform:translate3d(0,-12px,0) scale(.92)}to{transform:translate3d(-25px,25px,0) scale(1.12)} }
+
+.boot-screen { background:var(--bg);overflow:hidden; }
+.boot-orbit { width:74px;height:74px;border:1px solid rgba(var(--accent-rgb),.28);border-top-color:var(--lime);border-radius:50%;display:grid;place-items:center;animation:orbitSpin 1.7s linear infinite;box-shadow:0 0 38px var(--glow); }
+.boot-orbit-core { width:48px;height:48px;border-radius:15px;background:var(--lime);color:var(--bg);display:grid;place-items:center;font:700 25px 'Space Grotesk';box-shadow:0 0 30px var(--glow);animation:logoPulse 1.8s ease-in-out infinite; }
+.boot-orbit-core span { color:var(--panel); }
+.boot-screen .loader { width:118px;height:3px;background:var(--panel2); }
+.boot-screen .loader:after { background:linear-gradient(90deg,transparent,var(--lime),transparent);width:60%; }
+.boot-caption { color:var(--muted);font-size:8px;letter-spacing:2px;animation:fade 1.2s ease both; }
+@keyframes orbitSpin { to{transform:rotate(360deg)} }
+@keyframes logoPulse { 50%{transform:scale(.9);box-shadow:0 0 42px var(--glow)} }
+
+.auth-wrap { background:radial-gradient(ellipse at 50% 15%,var(--glow),transparent 46%); }
+.auth-card { background:color-mix(in srgb,var(--panel) 94%,transparent);border-color:var(--line);backdrop-filter:blur(18px); }
+.auth-card input,.field input,.field select,.field textarea,.inline-input,.search-row input,.set-inputs input { background:var(--surface-deep);border-color:var(--line);color:var(--text); }
+.password-wrap { position:relative;margin-top:8px; }
+.password-wrap input { margin-top:0!important;padding-right:72px!important; }
+.password-toggle { position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;border-radius:8px;padding:6px 9px;background:var(--panel2);color:var(--lime);font-size:10px;font-weight:700; }
+.password-toggle:hover { filter:brightness(1.2); }
+.auth-card .password-wrap { margin-top:8px; }
+.auth-card label .password-wrap input { margin-top:0; }
+
+.theme-control { display:flex;align-items:center;gap:7px;color:var(--muted);font-size:9px;letter-spacing:1px;font-weight:700;white-space:nowrap; }
+.theme-control select { background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:8px 25px 8px 10px;color:var(--text);font-size:11px;letter-spacing:0;outline:none;max-width:112px; }
+.theme-control select:focus { border-color:var(--lime); }
+.auth-controls { position:absolute;bottom:22px;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:20px; }
+.auth-controls>span { font-size:9px;letter-spacing:2px;color:var(--muted); }
+.app-theme-control { margin-right:3px; }
+.install-btn { padding:9px 12px;font-size:10px;white-space:nowrap; }
+.install-btn span { font-size:15px; }
+.topbar { background:color-mix(in srgb,var(--bg) 88%,transparent); }
+.sidebar { background:color-mix(in srgb,var(--bg) 88%,var(--panel)); }
+.card { transition:transform .25s ease,border-color .25s ease,box-shadow .25s ease,background .35s ease; }
+.card:hover { transform:translateY(-2px);border-color:rgba(var(--accent-rgb),.35);box-shadow:0 14px 35px rgba(0,0,0,.12); }
+.stat-icon { background:var(--panel2); }
+.nav-item:hover,.nav-item.active { background:var(--panel2); }
+.secondary { background:var(--panel2);border-color:var(--line); }
+.routine-row { border-color:var(--line); }
+.progress-track { background:var(--panel2); }
+.modal { background:var(--panel);border-color:var(--line); }
+.exercise-editor { border-color:var(--line); }
+.toast { background:var(--lime);color:var(--bg); }
+.page-content { animation:pageEnter .42s cubic-bezier(.2,.75,.25,1) both; }
+@keyframes pageEnter { from{opacity:0;transform:translateY(14px) scale(.995);filter:blur(3px)}to{opacity:1;transform:translateY(0) scale(1);filter:blur(0)} }
+.page-content .card { animation:cardEnter .5s both; }
+.page-content .card:nth-child(2){animation-delay:.06s}
+.page-content .card:nth-child(3){animation-delay:.12s}
+.page-content .card:nth-child(4){animation-delay:.18s}
+@keyframes cardEnter { from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)} }
+
+.loading-state { min-height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:15px;text-align:center; }
+.loading-spinner { width:42px;height:42px;border-radius:50%;border:3px solid var(--panel2);border-top-color:var(--lime);border-right-color:var(--lime);animation:orbitSpin .8s linear infinite;box-shadow:0 0 25px var(--glow); }
+.loading-copy { display:grid;gap:5px; }
+.loading-copy b { font:600 14px 'Space Grotesk'; }
+.loading-copy span { color:var(--muted);font-size:11px; }
+.loading-skeleton { display:flex;gap:7px;margin-top:7px; }
+.loading-skeleton i { display:block;width:48px;height:4px;border-radius:8px;background:var(--panel2);overflow:hidden;position:relative; }
+.loading-skeleton i:after { content:"";position:absolute;inset:0;background:var(--lime);transform:translateX(-100%);animation:skeletonSweep 1.3s ease-in-out infinite; }
+.loading-skeleton i:nth-child(2):after{animation-delay:.18s}.loading-skeleton i:nth-child(3):after{animation-delay:.36s}
+@keyframes skeletonSweep { to{transform:translateX(100%)} }
+
+.install-guide { max-width:430px; }
+.install-guide-icon { width:48px;height:48px;border-radius:15px;display:grid;place-items:center;background:var(--panel2);color:var(--lime);font-size:30px;margin-bottom:15px; }
+.install-steps { padding-left:22px;display:grid;gap:12px;color:var(--text);font-size:13px;line-height:1.5; }
+.install-steps li::marker { color:var(--lime);font-weight:700; }
+.share-symbol { display:inline-grid;place-items:center;border:1px solid var(--line);border-radius:5px;width:21px;height:21px;color:var(--lime);font-weight:700; }
+.install-guide .muted-block { margin-top:18px; }
+
+@media(max-width:760px) {
+  .top-actions { gap:6px; }
+  .app-theme-control .theme-label,.sync-label { display:none; }
+  .theme-control select { max-width:92px;padding:7px 18px 7px 7px;font-size:10px; }
+  .install-btn { padding:8px 9px;font-size:0; }
+  .install-btn span { font-size:16px; }
+  .auth-controls { flex-direction:column;gap:10px;bottom:14px; }
+}
+@media(max-width:420px) {
+  .top-actions .live-dot,.top-actions .sync-label { display:none; }
+  .topbar { gap:8px; }
+  .app-theme-control select { max-width:82px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  *,*::before,*::after { animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important; }
+}
