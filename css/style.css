@@ -153,3 +153,35 @@ body:after { width:220px;height:220px;bottom:3%;left:-100px;background:var(--lim
 .routine-progress-row .pill { white-space:nowrap; }
 .status-complete { color:var(--lime);border-color:rgba(var(--accent-rgb),.35); }
 @media(max-width:520px) { .routine-progress-row { gap:8px; } .routine-progress-row .pill { font-size:8px;padding:5px 6px; } }
+
+/* BMI & daily body-weight tracker */
+.body-summary-grid{grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:16px}
+.body-content-grid{grid-template-columns:minmax(0,1.5fr) minmax(280px,.9fr)}
+.body-bmi-card{background:linear-gradient(135deg,var(--panel),var(--panel2));border-color:rgba(var(--accent-rgb),.32)}
+.body-bmi-card .stat-value{font-size:42px}
+.body-bmi-card .muted-block{margin-bottom:0}
+.body-form .field{margin:8px 0 15px}
+.weight-chart{display:block;width:100%;height:auto;overflow:visible;margin-top:10px}
+.chart-grid{stroke:var(--line);stroke-width:1;stroke-dasharray:4 5}
+.weight-line{fill:none;stroke:var(--lime);stroke-width:3;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 2px 5px var(--glow))}
+.weight-point{fill:var(--lime);stroke:var(--panel);stroke-width:2}
+.chart-label{fill:var(--muted);font-size:10px}
+.mini-spinner{display:inline-block;width:13px;height:13px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;vertical-align:-2px;margin-right:7px;animation:orbitSpin .7s linear infinite}
+@media(max-width:900px){.body-content-grid{grid-template-columns:1fr}}
+@media(max-width:650px){.body-summary-grid{grid-template-columns:1fr 1fr}.body-summary-grid .body-bmi-card{grid-column:1/-1}}
+
+
+/* Consistency activity charts */
+.consistency-content{grid-template-columns:minmax(0,1.5fr) minmax(280px,.9fr)}
+.consistency-chart{height:190px;display:grid;grid-template-columns:repeat(30,minmax(3px,1fr));align-items:end;gap:5px;padding:18px 4px 0;border-bottom:1px solid var(--line);background:repeating-linear-gradient(to bottom,transparent 0,transparent 46px,var(--line) 47px,var(--line) 48px)}
+.consistency-bar-wrap{height:100%;display:flex;align-items:end;min-width:0}
+.consistency-bar{width:100%;min-height:3px;border-radius:5px 5px 1px 1px;background:var(--panel2);transition:height .35s ease,filter .2s ease}
+.consistency-bar.is-active{background:var(--lime);box-shadow:0 0 12px var(--glow)}
+.consistency-axis{display:flex;justify-content:space-between;color:var(--muted);font-size:10px;margin-top:8px}
+.consistency-legend{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:var(--muted);font-size:10px;margin-top:14px}
+.legend-dot{width:9px;height:9px;border-radius:3px;background:var(--panel2);display:inline-block}.legend-dot.active{background:var(--lime)}
+.consistency-week-summary{display:flex;align-items:baseline;gap:9px;margin:8px 0 14px}.consistency-week-summary b{font-size:34px;color:var(--lime)}.consistency-week-summary span{font-size:12px;color:var(--muted)}
+.consistency-day-list{display:grid;gap:0}.consistency-day-row{display:grid;grid-template-columns:70px 1fr auto;gap:8px;align-items:center;padding:10px 0;border-top:1px solid var(--line);font-size:11px}.consistency-day-row>span:first-child{color:var(--muted)}.consistency-day-row>span:nth-child(2){color:var(--text)}.consistency-day-row b{font-size:9px;letter-spacing:.06em}.activity-on{color:var(--lime)}.activity-off{color:var(--muted)}
+.consistency-denom{font-size:15px;color:var(--muted);margin-left:3px}.consistency-heat-card{margin-top:16px}.consistency-heatmap{display:grid;grid-template-columns:repeat(15,minmax(0,1fr));gap:7px;margin:14px 0}.consistency-heat{width:100%;aspect-ratio:1;border-radius:4px;background:var(--panel2);display:inline-block}.consistency-heat.level-1{background:color-mix(in srgb,var(--lime) 28%,var(--panel2))}.consistency-heat.level-2{background:color-mix(in srgb,var(--lime) 48%,var(--panel2))}.consistency-heat.level-3{background:color-mix(in srgb,var(--lime) 72%,var(--panel2))}.consistency-heat.level-4{background:var(--lime);box-shadow:0 0 8px var(--glow)}.consistency-note{margin-top:16px;margin-bottom:0}
+@media(max-width:900px){.consistency-content{grid-template-columns:1fr}.consistency-chart{gap:3px;height:160px}}
+@media(max-width:520px){.consistency-heatmap{grid-template-columns:repeat(10,minmax(0,1fr));gap:6px}.consistency-chart{grid-template-columns:repeat(30,minmax(2px,1fr));gap:2px}.consistency-day-row{grid-template-columns:58px 1fr auto;font-size:10px}}

@@ -435,6 +435,8 @@ function navigate(page) {
     routines: 'My routines',
     workout: 'Workout log',
     progression: 'Progression',
+    body: 'BMI & Body weight',
+    consistency: 'Consistency',
     history: 'Workout history',
     friends: 'Friends'
   };
@@ -459,6 +461,8 @@ async function renderPage() {
     if (state.page === 'routines') await renderRoutines(root);
     if (state.page === 'workout') await renderWorkout(root);
     if (state.page === 'progression') await renderProgression(root);
+    if (state.page === 'body') await renderBodyMetrics(root);
+    if (state.page === 'consistency') await renderConsistency(root);
     if (state.page === 'history') await renderHistory(root);
     if (state.page === 'friends') await renderFriends(root);
   } catch (e) {
@@ -861,6 +865,124 @@ async function saveProgression(id) {
     toast(e.message);
   }
 }
+
+async function renderBodyMetrics(root) {
+  const data = await api('bodyMetrics');
+  const entries = data.entries || [];
+  const latest = entries[entries.length - 1];
+  const height = Number(data.height_cm) || 0;
+  const bmi = latest && height ? latest.weight_kg / Math.pow(height / 100, 2) : 0;
+  const bmiLabel = !bmi ? 'Not available' : bmi < 18.5 ? 'Below healthy range' : bmi < 25 ? 'Healthy range' : bmi < 30 ? 'Above healthy range' : 'High BMI range';
+  const bmiTone = bmi >= 18.5 && bmi < 25 ? 'good' : 'neutral';
+  const maxPoints = entries.slice(-30);
+  const weights = maxPoints.map(x => x.weight_kg);
+  const min = weights.length ? Math.min(...weights) - 1 : 0;
+  const max = weights.length ? Math.max(...weights) + 1 : 1;
+  const coords = weights.map((v, i) => {
+    const x = weights.length < 2 ? 50 : 24 + i * (552 / (weights.length - 1));
+    const y = 150 - ((v - min) / Math.max(1, max - min)) * 112;
+    return [x, y];
+  });
+  const points = coords.map(p => p.join(',')).join(' ');
+  const chart = entries.length ? `<svg class="weight-chart" viewBox="0 0 600 190" role="img" aria-label="Daily body weight trend">
+    <line x1="24" y1="38" x2="576" y2="38" class="chart-grid"/><line x1="24" y1="94" x2="576" y2="94" class="chart-grid"/><line x1="24" y1="150" x2="576" y2="150" class="chart-grid"/>
+    ${coords.length > 1 ? `<polyline points="${points}" class="weight-line"/>` : ''}
+    ${coords.map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="4" class="weight-point"/>`).join('')}
+    <text x="24" y="178" class="chart-label">${esc(maxPoints[0].date)}</text><text x="576" y="178" text-anchor="end" class="chart-label">${esc(maxPoints[maxPoints.length - 1].date)}</text>
+  </svg>` : `<div class="empty">Your weight chart will appear after your first daily entry.</div>`;
+
+  root.innerHTML = `<div class="section-head"><div><div class="eyebrow">BODY COMPOSITION TRACKER</div><h1>BMI & Body weight</h1><p>Record your weight daily and follow your long-term trend.</p></div></div>
+    <div class="grid body-summary-grid">
+      <div class="card body-bmi-card"><div class="stat-head">CURRENT BMI <span class="stat-icon">◉</span></div><div class="stat-value">${bmi ? bmi.toFixed(1) : '—'}</div><div class="stat-note">${esc(bmiLabel)}</div><p class="muted-block">BMI is a general screening measure, not a diagnosis.</p></div>
+      <div class="card"><div class="stat-head">LATEST WEIGHT</div><div class="stat-value">${latest ? latest.weight_kg.toFixed(1) : '—'} <small>kg</small></div><div class="stat-note">${latest ? `Last recorded ${esc(latest.date)}` : 'No weight recorded yet'}</div></div>
+      <div class="card"><div class="stat-head">HEIGHT</div><div class="stat-value">${height ? height.toFixed(1) : '—'} <small>cm</small></div><div class="stat-note">Set your height below</div></div>
+    </div>
+    <div class="grid body-content-grid">
+      <div class="card"><div class="card-title"><div><h3>Daily weight trend</h3><p>Last 30 entries · ${entries.length} total records</p></div><span class="pill">KG</span></div>${chart}</div>
+      <div class="card"><div class="card-title"><div><h3>Record today's metrics</h3><p>One entry per day. Saving again updates today's entry.</p></div></div>
+        <form id="bodyMetricsForm" class="body-form">
+          <label class="field">Height (cm)<input id="bodyHeight" type="number" min="80" max="250" step="0.1" value="${height || ''}" placeholder="e.g. 172" required></label>
+          <label class="field">Today's weight (kg)<input id="bodyWeight" type="number" min="20" max="400" step="0.1" value="${latest && latest.date === new Date().toLocaleDateString('en-CA', {timeZone:'Asia/Singapore'}) ? latest.weight_kg : ''}" placeholder="e.g. 68.5" required></label>
+          <button class="btn primary full" id="saveBodyMetricsBtn" type="submit">Save today's weight</button>
+        </form>
+        <p class="muted-block">Your height is saved to your profile. Weight is stored by date, so you can track changes over time.</p>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px"><div class="card-title"><div><h3>Recent entries</h3><p>Your latest daily measurements</p></div></div>
+      ${entries.length ? `<div class="table-wrap"><table class="table"><thead><tr><th>DATE</th><th>WEIGHT</th><th>BMI</th></tr></thead><tbody>${entries.slice(-10).reverse().map(e => `<tr><td>${esc(e.date)}</td><td>${e.weight_kg.toFixed(1)} kg</td><td>${height ? (e.weight_kg / Math.pow(height/100,2)).toFixed(1) : '—'}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">No entries yet.</div>'}
+    </div>`;
+
+  $('bodyMetricsForm').addEventListener('submit', async event => {
+    event.preventDefault();
+    const btn = $('saveBodyMetricsBtn');
+    if (btn.disabled) return;
+    const old = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<span class="mini-spinner"></span> Saving...';
+    try {
+      await api('saveBodyMetrics', { height_cm: $('bodyHeight').value, weight_kg: $('bodyWeight').value });
+      toast("Today's weight saved");
+      await renderBodyMetrics(root);
+    } catch (error) {
+      toast(error.message || 'Could not save body metrics');
+    } finally {
+      if (btn.isConnected) { btn.disabled = false; btn.innerHTML = old; }
+    }
+  });
+}
+
+
+async function renderConsistency(root) {
+  const data = await api('consistency');
+  const days = data.days || [];
+  const maxSets = Math.max(1, ...days.map(d => Number(d.sets) || 0));
+  const bars = days.map(d => {
+    const height = d.active ? Math.max(8, Math.round((Number(d.sets) || 0) / maxSets * 100)) : 3;
+    const label = new Date(d.date + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+    return `<div class="consistency-bar-wrap" title="${esc(label)} · ${Number(d.sets)||0} sets · ${Number(d.reps)||0} reps">
+      <div class="consistency-bar ${d.active ? 'is-active' : ''}" style="height:${height}%"></div>
+    </div>`;
+  }).join('');
+  const heat = days.map(d => {
+    const label = new Date(d.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+    const intensity = !d.active ? 'level-0' : d.sets >= 8 ? 'level-4' : d.sets >= 5 ? 'level-3' : d.sets >= 3 ? 'level-2' : 'level-1';
+    return `<div class="consistency-heat ${intensity}" title="${esc(label)}: ${Number(d.sets)||0} sets, ${Number(d.reps)||0} reps"></div>`;
+  }).join('');
+  const recent = days.slice(-7).map(d => {
+    const label = new Date(d.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' });
+    return `<div class="consistency-day-row"><span>${esc(label)}</span><span>${d.active ? `${Number(d.sets)||0} sets · ${Number(d.reps)||0} reps` : 'Rest day'}</span><b class="${d.active ? 'activity-on' : 'activity-off'}">${d.active ? 'ACTIVE' : '—'}</b></div>`;
+  }).join('');
+
+  root.innerHTML = `<div class="section-head">
+    <div><div class="eyebrow">SHOW UP, TRACK PROGRESS</div><h1>Consistency</h1><p>Your training activity, active days and streaks — based on sets you actually log.</p></div>
+    <button class="btn secondary" onclick="renderPage()">↻ Refresh</button>
+  </div>
+  <div class="grid stats-grid consistency-stats">
+    <div class="card stat-card"><div class="stat-head">CURRENT STREAK <span class="stat-icon">🔥</span></div><div class="stat-value">${Number(data.currentStreak)||0}</div><div class="stat-note">Consecutive active days</div></div>
+    <div class="card stat-card"><div class="stat-head">BEST STREAK <span class="stat-icon">✦</span></div><div class="stat-value">${Number(data.bestStreak)||0}</div><div class="stat-note">Your personal best</div></div>
+    <div class="card stat-card"><div class="stat-head">ACTIVE DAYS <span class="stat-icon">▦</span></div><div class="stat-value">${Number(data.activeLast30)||0}<small class="consistency-denom">/30</small></div><div class="stat-note">Last 30 days</div></div>
+    <div class="card stat-card"><div class="stat-head">SETS LOGGED <span class="stat-icon">▤</span></div><div class="stat-value">${Number(data.totalSets30)||0}</div><div class="stat-note">Last 30 days</div></div>
+  </div>
+  <div class="grid content-grid consistency-content">
+    <div class="card">
+      <div class="card-title"><div><h3>30-day activity</h3><p>Daily training volume · logged sets</p></div><span class="pill">LAST 30 DAYS</span></div>
+      <div class="consistency-chart" role="img" aria-label="Bar chart showing logged sets for each of the last 30 days">${bars}</div>
+      <div class="consistency-axis"><span>30 days ago</span><span>Today</span></div>
+      <div class="consistency-legend"><span><i class="legend-dot active"></i> Activity recorded</span><span><i class="legend-dot"></i> No sets logged</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><div><h3>Activity summary</h3><p>Your last 7 days</p></div></div>
+      <div class="consistency-week-summary"><b>${Number(data.activeLast7)||0}/7</b><span>active days this week</span></div>
+      <div class="consistency-day-list">${recent}</div>
+    </div>
+  </div>
+  <div class="card consistency-heat-card">
+    <div class="card-title"><div><h3>Activity calendar</h3><p>Each square represents one day. More logged sets = stronger activity.</p></div></div>
+    <div class="consistency-heatmap">${heat}</div>
+    <div class="consistency-legend"><span>Less</span><i class="consistency-heat level-0"></i><i class="consistency-heat level-1"></i><i class="consistency-heat level-2"></i><i class="consistency-heat level-3"></i><i class="consistency-heat level-4"></i><span>More</span></div>
+    <p class="muted-block consistency-note">A day counts as active when at least one workout set is saved. Starting a workout without logging a set does not count. Rest days are okay — consistency is about sustainable progress.</p>
+  </div>`;
+}
+
 
 async function renderHistory(root) {
   const data = await api('history');
