@@ -770,7 +770,9 @@ function startHeartbeat() {
 
       await api('heartbeat', {
         state: active ? 'workout' : 'online',
-        activity: active ? 'Working out · ' + state.activeRoutine.routine_name : 'Online'
+        activity: active
+          ? 'Working out · ' + state.activeRoutine.routine_name
+          : 'Online'
       });
     } catch (e) {}
   };
@@ -779,8 +781,12 @@ function startHeartbeat() {
 
   state.heartbeat = setInterval(beat, 30000);
 
+  // Poll only the Friends page.
+  // Do not reload the entire Dashboard every 45 seconds.
   state.presencePoll = setInterval(() => {
-    if (state.page === 'friends' || state.page === 'dashboard') renderPage();
+    if (state.page === 'friends') {
+      renderPage();
+    }
   }, 45000);
 }
 
