@@ -14,3 +14,16 @@ This is the real hosted frontend. GitHub Pages serves `index.html`, `css/style.c
 The proxy is required because Google Apps Script ContentService does not support arbitrary browser CORS headers. Do not use a public JSONP workaround for username/password authentication.
 
 **Security caveats:** This is a small-group starter, not a security-audited production service. Apps Script salted SHA-256 is not a slow password KDF; consider an external auth service before a broad public launch. Google Apps Script and Cloudflare free services have limits. The Worker validates browser origins, but Origin is not an authentication mechanism: the private bridge secret protects the backend and user sessions protect user data. Change the default admin password.
+
+## Cloudflare Worker deployment
+
+- `worker.js` is the Cloudflare Worker entry point.
+- `wrangler.jsonc` points Wrangler to `worker.js`.
+- The frontend remains hosted separately on GitHub Pages.
+- Configure these Worker variables/secrets in Cloudflare:
+  - Secret `BRIDGE_SECRET`
+  - Variable `GAS_URL` (your Apps Script Web App `/exec` URL)
+  - Variable `FRONTEND_ORIGIN` (`https://fazleyabdulaziz-beep.github.io`)
+- Do not commit `.dev.vars`, `.env` files, `node_modules/`, or private Apps Script `.gs` source files.
+
+Deploy locally with `npx wrangler deploy` after installing Wrangler, or let the connected Cloudflare Git build deploy from this repository.

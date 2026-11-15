@@ -1,8 +1,15 @@
-# Never commit credentials, local settings or private backend source
+# Dependencies and generated Cloudflare files
+node_modules/
+.wrangler/
+
+# Local secrets and environment files
+.dev.vars
 .env
 .env.*
 *.pem
 *.key
 secrets/
+
+# Private backend source must stay out of this public repository
 private-backend/
 apps-script-private/
